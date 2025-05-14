@@ -1,0 +1,22 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 10px;
+  width: 300px;
+}
+
+.script-entry {
+  padding: 8px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.safe {
+  background-color: #e7f7e7;
+  color: #2a662a;
+}
+
+.danger {
+  background-color: #fbeaea;
+  color: #a83232;
+}
