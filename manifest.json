@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Website Scanner",
+  "version": "2",
+  "action": {
+    "default_popup": "index.html"
+  },
+  "permissions": [
+    "scripting",
+    "activeTab",
+    "storage",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["acorn.min.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+
+  
+}

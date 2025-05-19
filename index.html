@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="tab-nav">
+    <button class="nav-tab active" id="scan-tab-btn">Scan</button>
+    <button class="nav-tab" id="settings-tab-btn">Settings</button>
+  </div>
+
+  <!-- Scan Tab -->
+  <div id="scan-tab">
+    <h2>Website Scan</h2>
+    
+    <button id="scan-button">Scan</button>
+    
+    <div id="scan-container">
+      <div id="progress-container">
+        <div id="progress-bar"></div>
+      </div>
+      <p id="status-text">Waiting to scan...</p>
+      <p id="scan-result"></p>
+      <ul id="detailed-results"></ul>
+    </div>
+
+
+  <!-- Settings Tab -->
+  <div id="settings-tab" style="display: none;">
+    <div class="settings-layout">
+      <div class="settings-sidebar">
+        <button id="settings-sub-tab-btn" class="active">Settings</button>
+        <button id="additional-sub-tab-btn" class="disabled">Additional</button>
+      </div>
+      <div class="settings-content">
+        <div id="settings-sub-tab">
+          <label class="switch">
+            <input type="checkbox" id="toggle-advanced">
+            <span class="slider"></span>
+          </label>
+          <span>Turn on advanced settings</span>
+        </div>
+        <div id="additional-sub-tab" style="display:none;">
+          <h3>Vulnerability types to be scanned:</h3>
+          <label class="switch">
+            <input type="checkbox" id="toggle-xss" checked>
+            <span class="slider"></span>
+          </label>
+          <span>XSS</span><br>
+          <label class="switch">
+            <input type="checkbox" id="toggle-lib" checked>
+            <span class="slider"></span>
+          </label>
+          <span>Insecure Libraries</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
