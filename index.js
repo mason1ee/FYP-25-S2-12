@@ -34,7 +34,7 @@ let onScanResult = null;
 let isScanning = false;
 
 function startScan() {
-  if (isScanning) return; // Prevent overlapping scans
+  if (isScanning) return;
   isScanning = true;
 
   scanContainer.style.display = "block";
@@ -48,13 +48,11 @@ function startScan() {
   detailedResults.innerHTML = "";
   statusText.textContent = "";
 
-  // Clear any existing progress interval
   if (interval) {
     clearInterval(interval);
     interval = null;
   }
 
-  // Remove old listener if exists
   if (onScanResult) {
     chrome.runtime.onMessage.removeListener(onScanResult);
     onScanResult = null;
@@ -66,7 +64,6 @@ function startScan() {
   let progress = 0;
   const progressStep = (100 * updateInterval) / scanDuration;
 
-  // Start progress bar updates
   interval = setInterval(() => {
     timeElapsed += updateInterval;
     progress = Math.min(progress + progressStep, 100);
@@ -109,7 +106,6 @@ function startScan() {
           return;
         }
 
-        // Define and add listener to receive scan results
         onScanResult = function (message, sender) {
           if (message.type === "page-analysis-result") {
             clearInterval(interval);
@@ -153,9 +149,65 @@ function startScan() {
                 detailedResults.innerHTML = "";
               }
 
-              resetScanButton();
+              // Add summary table of script types
+              chrome.tabs.sendMessage(tab.id, { action: "getContentThreats" }, (res) => {
+                const threats = res?.threats || [];
 
-              // Remove listener after result is processed
+                const inlineCount = threats.filter(t =>
+                  typeof t === "string" && t.includes("inline-")
+                ).length;
+
+                const externalScripts = threats.filter(t =>
+                  typeof t === "object" && t.scriptIndex?.includes("external-")
+                );
+
+                const externalCount = externalScripts.length;
+
+                const scriptSummary = document.createElement("table");
+                scriptSummary.style.marginTop = "1em";
+                scriptSummary.style.borderCollapse = "collapse";
+                scriptSummary.style.width = "100%";
+
+                const headerRow = scriptSummary.insertRow();
+                ["Inline", "External"].forEach((type) => {
+                  const th = document.createElement("th");
+                  th.textContent = type;
+                  th.style.padding = "8px";
+                  th.style.textAlign = "center";
+                  th.style.backgroundColor = "#f0f0f0";
+                  headerRow.appendChild(th);
+                });
+
+                const row = scriptSummary.insertRow();
+                const inlineCell = row.insertCell();
+                const externalCell = row.insertCell();
+
+                inlineCell.textContent = inlineCount;
+                externalCell.textContent = externalCount;
+
+                inlineCell.style.backgroundColor = "#ffcccc";
+                inlineCell.style.textAlign = "center";
+                inlineCell.style.padding = "6px";
+
+                externalCell.style.backgroundColor = "#ccffcc";
+                externalCell.style.textAlign = "center";
+                externalCell.style.padding = "6px";
+
+                detailedResults.parentElement.appendChild(scriptSummary);
+
+                if (externalCount > 0) {
+                  const showExternalBtn = document.createElement("button");
+                  showExternalBtn.textContent = "View External URLs";
+                  showExternalBtn.style.marginTop = "10px";
+                  showExternalBtn.addEventListener("click", () => {
+                    const urls = externalScripts.map(s => s.url || s.scriptIndex || "unknown");
+                    alert("External Script URLs:\n" + urls.join("\n"));
+                  });
+                  detailedResults.parentElement.appendChild(showExternalBtn);
+                }
+              });
+
+              resetScanButton();
               chrome.runtime.onMessage.removeListener(onScanResult);
               onScanResult = null;
             });

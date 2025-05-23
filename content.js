@@ -1,5 +1,32 @@
+// Store last scan results globally
+let lastThreats = [];
+let lastProtocol = "";
+
+// JavaScript scan for scripts (used for basic inline detection and messaging)
+(() => {
+  const scripts = document.querySelectorAll('script');
+  const results = [];
+
+  scripts.forEach((script, index) => {
+    const src = script.src || 'inline';
+    const usesEval = /eval\(/i.test(script.innerText);
+    const isInline = !script.src;
+    const suspicious = usesEval || isInline;
+
+    results.push({
+      index,
+      src,
+      usesEval,
+      isInline,
+      suspicious
+    });
+  });
+
+  window.postMessage({ type: "SCRIPT_ANALYSIS", data: results }, "*");
+})();
+
+// Main page analysis logic
 function analyzePage() {
-  // Reset identifiers before new scan
   lastThreats = [];
   lastProtocol = "";
 
@@ -20,9 +47,6 @@ function analyzePage() {
     }
   });
 
-  // Detect unsafe JS usage on inputs (simplified example)
-  // For demo: look for any inline script that accesses input.value directly
-  // (You can improve this detection logic)
   function unsafeJSUsage(code, label) {
     if (/\.value/.test(code)) {
       threats.push(`Unsafe JavaScript usage of inputs in ${label}`);
@@ -64,6 +88,10 @@ function analyzePage() {
     if (isInline) {
       const code = script.textContent;
       processCode(code, label);
+      threats.push({
+        scriptIndex: label,
+        url: "inline"
+      });
     } else {
       const src = script.src;
       pendingFetches++;
@@ -81,6 +109,10 @@ function analyzePage() {
             });
           } else {
             processCode(code, label);
+            threats.push({
+              scriptIndex: label,
+              url: src
+            });
           }
           sendIfDone();
         })
@@ -97,33 +129,17 @@ function analyzePage() {
   if (pendingFetches === 0) {
     finishAnalysis();
   }
-
-    // Listen for messages
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "startScan") {
-      analyzePage();
-      sendResponse({ started: true });
-      return true; // keep channel open
-    }
-    if (message.action === "getContentThreats") {
-      sendResponse({ threats: lastThreats, protocol: lastProtocol });
-    }
-    return true;
-  });
 }
 
-// Listen for popup queries requesting threats
+// Message handling for popup and background scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "startScan") {
+    analyzePage();
+    sendResponse({ started: true });
+    return true; // Keep channel open for async
+  }
   if (message.action === "getContentThreats") {
     sendResponse({ threats: lastThreats, protocol: lastProtocol });
+    return true;
   }
-  // Indicate response is sent synchronously
-  return true;
 });
-
-// Run analysis on DOM ready
-if (document.readyState === "complete" || document.readyState === "interactive") {
-  analyzePage();
-} else {
-  window.addEventListener("DOMContentLoaded", analyzePage);
-}

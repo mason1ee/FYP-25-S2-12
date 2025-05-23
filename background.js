@@ -1,5 +1,9 @@
 let lastSecurityHeaders = {};
 
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('Script Inspector extension installed');
+});
+
 chrome.webRequest.onHeadersReceived.addListener(
   (details) => {
     // Extract security headers from the response headers

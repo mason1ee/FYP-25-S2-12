@@ -1,15 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "Website Scanner",
+  "name": "Webbed",
   "version": "2",
+  "description": "Client-Side Script Security Inspector",
   "action": {
-    "default_popup": "index.html"
+    "default_popup": "index.html",
+    "default_icon": "logo128x128.png"
   },
   "permissions": [
     "scripting",
     "activeTab",
     "storage",
-    "webRequest"
+    "webRequest",
+    "tabs"
   ],
   "host_permissions": [
     "http://*/*",
