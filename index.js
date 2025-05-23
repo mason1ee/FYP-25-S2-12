@@ -10,21 +10,37 @@ const settingsTabBtn = document.getElementById("settings-tab-btn");
 const scanTab = document.getElementById("scan-tab");
 const settingsTab = document.getElementById("settings-tab");
 
+const sitesTabBtn = document.getElementById("sites-tab-btn");
+const sitesSection = document.getElementById("sites-section");
+
 scanContainer.style.display = "none";
 
 // Tab navigation
 scanTabBtn.addEventListener("click", () => {
   scanTab.style.display = "block";
   settingsTab.style.display = "none";
+  sitesSection.style.display = "none";
   scanTabBtn.classList.add("active");
   settingsTabBtn.classList.remove("active");
+  sitesTabBtn.classList.remove("active");
 });
 
 settingsTabBtn.addEventListener("click", () => {
   scanTab.style.display = "none";
   settingsTab.style.display = "block";
+  sitesSection.style.display = "none";
   settingsTabBtn.classList.add("active");
   scanTabBtn.classList.remove("active");
+  sitesTabBtn.classList.remove("active");
+});
+
+sitesTabBtn.addEventListener("click", () => {
+  scanTab.style.display = "none";
+  settingsTab.style.display = "none";
+  sitesSection.style.display = "block";
+  scanTabBtn.classList.remove("active");
+  settingsTabBtn.classList.remove("active");
+  sitesTabBtn.classList.add("active");
 });
 
 scanButton.addEventListener("click", startScan);

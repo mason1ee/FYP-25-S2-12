@@ -94,40 +94,16 @@ body {
   }
   
   /* Settings Layout */
-  .settings-layout {
-    display: flex;
-    gap: 20px;
-  }
-  
-  .settings-sidebar {
+  #settings-tab.section {
     display: flex;
     flex-direction: column;
-    width: 120px;
   }
-  
-  .settings-sidebar button {
-    padding: 10px;
-    border: none;
-    margin-bottom: 5px;
-    cursor: pointer;
-    background-color: #eee;
-    border-radius: 5px;
-    text-align: left;
-  }
-  
-  .settings-sidebar button.active {
-    background-color: #ddd;
-    font-weight: bold;
-  }
-  
-  .settings-sidebar button.disabled {
-    background-color: #ccc;
-    color: #888;
-    cursor: not-allowed;
-  }
-  
-  .settings-content {
-    flex-grow: 1;
+
+  .setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
   }
 
   /* Start of button css */
@@ -191,6 +167,34 @@ body {
     background-color: #28a745;
     transition: width 0.1s ease;
   }
+ 
+  /* Websites Part */
+  .container {
+    display: flex;
+    justify-content: space-between;
+    gap: 0; /* no spacing between boxes */
+  }
 
+  .list-box {
+    flex: 1;
+    margin: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    border: 1px solid #ccc;
+    padding: 6px;
+    font-size: 14px;
+    text-align: center;
+  }
+
+  th {
+    background-color: #f0f0f0;
+    text-align: center;
+  }
 /* End of button css*/
   
