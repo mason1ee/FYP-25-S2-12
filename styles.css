@@ -169,12 +169,6 @@ body {
   }
  
   /* Websites Part */
-  .container {
-    display: flex;
-    justify-content: space-between;
-    gap: 0; /* no spacing between boxes */
-  }
-
   .list-box {
     flex: 1;
     margin: 0;
@@ -195,6 +189,29 @@ body {
   th {
     background-color: #f0f0f0;
     text-align: center;
+  }
+
+  #whitelist-sort,
+  #blacklist-sort {
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    padding: 8px 16px;      /* More spacing inside the button */
+    border-radius: 8px;     /* Rounded corners */
+    font-size: 13px;
+  }
+
+  #whitelist-sort:hover,
+  #blacklist-sort:hover {
+    background-color: #0056b3; /* Slightly darker blue */
+  }
+
+  #whitelist thead th,
+  #blacklist thead th {
+    background-color: #007BFF;
+    color: white;
   }
 /* End of button css*/
   

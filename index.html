@@ -57,34 +57,37 @@
   <!-- Websites Tab -->
   <div id="sites-section" class="section" style="display: none;">
     <h1>Manage Websites</h1>
+    <div class="tab-nav">
+      <button class="nav-tab active" id="whitelist-tab-btn">Whitelist</button>
+      <button class="nav-tab" id="blacklist-tab-btn">Blacklist</button>
+    </div>
+    
+    <div id="whitelist-tab" style="display: block;" class="list-box">
+      <input type="text" id="whitelist-filter" placeholder="Filter whitelist..." style="width: 100%; margin-bottom: 5px;">
+      <button id="whitelist-sort" data-order="asc" style="margin-bottom:5px;">Sort Asc</button>
+      <table id="whitelist">
+        <thead>
+          <tr><th>Whitelist</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
 
-      <div class="container">
-      <div class="list-box">
-        <input type="text" id="whitelist-filter" placeholder="Filter whitelist..." style="width: 100%; margin-bottom: 5px;">
-        <button id="whitelist-sort" data-order="asc" style="margin-bottom:5px;">Sort Asc</button>
-        <table id="whitelist">
-          <thead>
-            <tr><th>Whitelist</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-
-      <div class="list-box">
-        <input type="text" id="blacklist-filter" placeholder="Filter blacklist..." style="width: 100%; margin-bottom: 5px;">
-        <button id="blacklist-sort" data-order="asc" style="margin-bottom:5px;">Sort Asc</button>
-        <table id="blacklist">
-          <thead>
-            <tr><th>Blacklist</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
+    <div id="blacklist-tab" style="display: none;" class="list-box">
+      <input type="text" id="blacklist-filter" placeholder="Filter blacklist..." style="width: 100%; margin-bottom: 5px;">
+      <button id="blacklist-sort" data-order="asc" style="margin-bottom:5px;">Sort Asc</button>
+      <table id="blacklist">
+        <thead>
+          <tr><th>Blacklist</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
-
+  
   <script src="index.js"></script>
   <script src="popup.js"></script>
+  <script src="lists.js"></script> <!-- for list funcitonality -->
 </body>
 </html>

@@ -12,6 +12,10 @@ const settingsTab = document.getElementById("settings-tab");
 
 const sitesTabBtn = document.getElementById("sites-tab-btn");
 const sitesSection = document.getElementById("sites-section");
+const whitelistTabBtn = document.getElementById("whitelist-tab-btn");
+const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
+const whitelistTab = document.getElementById("whitelist-tab");
+const blacklistTab = document.getElementById("blacklist-tab");
 
 scanContainer.style.display = "none";
 
@@ -41,6 +45,21 @@ sitesTabBtn.addEventListener("click", () => {
   scanTabBtn.classList.remove("active");
   settingsTabBtn.classList.remove("active");
   sitesTabBtn.classList.add("active");
+});
+
+/* Website list Tab Navigation */
+whitelistTabBtn.addEventListener("click", () => {
+  whitelistTab.style.display = "block";
+  blacklistTab.style.display = "none";
+  whitelistTabBtn.classList.add("active");
+  blacklistTabBtn.classList.remove("active");
+});
+
+blacklistTabBtn.addEventListener("click", () => {
+  whitelistTab.style.display = "none";
+  blacklistTab.style.display = "block";
+  whitelistTabBtn.classList.remove("active");
+  blacklistTabBtn.classList.add("active");
 });
 
 scanButton.addEventListener("click", startScan);
