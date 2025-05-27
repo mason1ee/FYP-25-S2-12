@@ -85,3 +85,23 @@ document.addEventListener("DOMContentLoaded", () => {
     populateTables();
   });
 });
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "local" && (changes.whitelist || changes.blacklist)) {
+    location.reload();
+  }
+});
+
+//For Reset
+document.getElementById("reset-lists").addEventListener("click", () => {
+  if (confirm("Are you sure you want to reset all lists?")) {
+    chrome.storage.local.set({
+      whitelist: ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"],
+      blacklist: ["evil.com", "maliciousdomain.net"]
+    }, () => {
+      alert("All website lists have been reset.");
+      location.reload(); // Reload popup to reflect changes
+    });
+  }
+});
+

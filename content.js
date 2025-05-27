@@ -1,6 +1,9 @@
 // Store last scan results globally
 let lastThreats = [];
 let lastProtocol = "";
+let whitelist = [];
+let blacklist = [];
+
 
 // JavaScript scan for scripts (used for basic inline detection and messaging)
 (() => {
@@ -74,6 +77,34 @@ function analyzePage() {
 
   function finishAnalysis() {
     lastThreats = threats;
+
+    const classification = classifySite(threats);
+    const site = window.location.hostname;
+
+    if (classification === 'whitelist') {
+      whitelist.push(site);
+    } else if (classification === 'blacklist') {
+      blacklist.push(site);
+    }
+
+    // Optionally store in chrome.storage
+    chrome.storage.local.get(["whitelist", "blacklist"], (data) => {
+      const wl = new Set(data.whitelist || []);
+      const bl = new Set(data.blacklist || []);
+
+      if (classification === 'whitelist') {
+        wl.add(site);
+        bl.delete(site); // Remove from blacklist if present
+      } else if (classification === 'blacklist') {
+        bl.add(site);
+        wl.delete(site); // Remove from whitelist if present
+      }
+
+      chrome.storage.local.set({
+        whitelist: Array.from(wl),
+        blacklist: Array.from(bl)
+      });
+    });
     chrome.runtime.sendMessage({
       type: "page-analysis-result",
       protocol: lastProtocol,
@@ -130,6 +161,30 @@ function analyzePage() {
     finishAnalysis();
   }
 }
+
+//Classifying Site Functionality
+function classifySite(threats) {
+  const threatCount = threats.length;
+
+  const hasCriticalThreat = threats.some(threat =>
+    typeof threat === 'object' && (
+      (threat.error?.includes("eval")) ||
+      (typeof threat === 'string' && threat.includes("HTTP"))
+    )
+  );
+
+  const isInsecureProtocol = window.location.protocol !== "https:";
+
+  // Immediate blacklist conditions
+  if (isInsecureProtocol || hasCriticalThreat || threatCount > 20) {
+    return 'blacklist';
+  }
+
+  // Otherwise treat as whitelist
+  return 'whitelist';
+}
+
+
 
 // Message handling for popup and background scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
