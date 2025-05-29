@@ -23,7 +23,7 @@
   "content_scripts": [
     {
       "matches": ["http://*/*", "https://*/*"],
-      "js": ["test-injection.js" ,"acorn.min.js", "content.js"],
+      "js": ["acorn.min.js", "content.js"],
       "run_at": "document_idle"
     }
   ]
