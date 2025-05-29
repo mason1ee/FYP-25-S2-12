@@ -75,6 +75,8 @@ if (popoutButton) {
             type: "popup",
             width: 400,
             height: 600
+          }, () =>{
+            window.close();
           });
         });
       }
