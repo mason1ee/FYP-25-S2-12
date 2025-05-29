@@ -4,6 +4,36 @@ body {
     min-width: 300px;
   }
   
+  /* Popout button */
+
+  #popout-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    margin-bottom: 10px;
+  }
+
+  #popout-btn:hover {
+    background-color: #0056b3;
+    transform: scale(1.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  #popout-btn svg {
+    stroke: white;
+  }
+  
+  /* End of Popout button */
+
   /* Top navigation */
   .tab-nav {
     display: flex;
@@ -24,6 +54,7 @@ body {
     color: white;
   }
 
+  /* End of Top navigation */
   
   /* Scan UI */
   .loader-container {
@@ -46,7 +77,9 @@ body {
   #scan-result {
     font-weight: bold;
   }
-  
+
+  /* End of Scan UI */
+
   /* Switches */
   .switch {
     position: relative;
@@ -93,6 +126,8 @@ body {
     transform: translateX(26px);
   }
   
+  /* End of Switches */
+
   /* Settings Layout */
   #settings-tab.section {
     display: flex;
@@ -105,6 +140,8 @@ body {
     align-items: center;
     margin-bottom: 10px;
   }
+
+  /* End of Settings Layout */
 
   /* Start of button css */
   #scan-button {
@@ -214,4 +251,3 @@ body {
     color: white;
   }
 /* End of button css*/
-  
