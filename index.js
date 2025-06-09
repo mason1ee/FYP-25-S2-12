@@ -353,3 +353,5 @@ function resetScanButton() {
   scanButton.style.opacity = 1;
   scanButton.style.cursor = "pointer";
 }
+
+
