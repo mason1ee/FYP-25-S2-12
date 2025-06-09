@@ -261,7 +261,7 @@ function startScan() {
                     li.textContent = typeof threat === "string" ? threat : JSON.stringify(threat);
                     detailedResults.appendChild(li);
                   });
-                  vulnCountText.textContent = `${allThreats.length} vulnerabilities detected:`;
+                  vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
                 } else {
                   resultText.textContent = "Website appears secure.";
                   resultText.style.color = "green";
