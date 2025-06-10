@@ -1,7 +1,20 @@
 let lastSecurityHeaders = {};
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('Script Inspector extension installed');
+  console.log('Client-side Security Script Inspector extension installed');
+});
+
+// Restore JS-Blocker state on startup
+chrome.runtime.onStartup.addListener(() => {
+  chrome.storage.local.get('blocked', ({ blocked }) => {
+    if (typeof blocked === 'boolean') {
+      chrome.declarativeNetRequest.updateEnabledRulesets(
+        blocked
+          ? { enableRulesetIds: ['ruleset_1'] }
+          : { disableRulesetIds: ['ruleset_1'] }
+      );
+    }
+  });
 });
 
 chrome.webRequest.onHeadersReceived.addListener(

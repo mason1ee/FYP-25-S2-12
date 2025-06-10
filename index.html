@@ -38,6 +38,11 @@
       <p id="scan-result"></p>
       <p id="vuln-count" style="margin-top: 0.3em; font-weight: bold;"></p>
       <ol id="detailed-results"></ol>
+
+      <!-- Download Log Button (hidden until after scan) -->
+      <button id="download-log" style="display: none; margin-top: 1em;">
+        Download Scan Log
+      </button>
     </div>
   </div>
 
@@ -67,6 +72,19 @@
         <span class="slider"></span>
       </label>
     </div>
+
+    <!-- JS Blocker on/off switch -->
+    <div class="setting-item" style="margin-top:1em;">
+      <span>Enable JS Blocker</span>
+      <label class="switch">
+        <input type="checkbox" id="toggle-js-blocker">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div id="blocker-status" style="margin-top:1em;">
+    Status: <span id="blocker-status-text">Loading…</span>
+  </div>
   </div>
 
   <!-- Websites Tab -->
