@@ -22,6 +22,12 @@ Initializes default whitelist and blacklist on installation via chrome.storage.l
 - lists.js - 
 Displays and filters the whitelist and blacklist in a table format, etc.
 
+- rules.json -
+Rules for JS Blocker
+
+- _metadata
+For JS Blocker
+
 - index.html -
 The main popup for the extension.
 
