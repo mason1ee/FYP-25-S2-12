@@ -4,6 +4,10 @@ let lastProtocol = "";
 let whitelist = [];
 let blacklist = [];
 
+
+
+
+
 // Trusted CDN list
 const trustedCDNs = [
   "cdnjs.cloudflare.com",

@@ -21,6 +21,10 @@ const blacklistTab = document.getElementById("blacklist-tab");
 
 const popoutButton = document.getElementById("popout-btn");
 
+// — NEW: JS-Blocker toggle in Settings —————————
+const jsSettingsToggle = document.getElementById("toggle-js-blocker");
+const blockerStatusText = document.getElementById("blocker-status-text");
+
 scanContainer.style.display = "none";
 
 // Tab navigation
@@ -94,11 +98,6 @@ function resetScanButton() {
   scanButton.style.cursor = "pointer";
 }
 
-// — NEW: JS-Blocker toggle in Settings —————————
-const jsSettingsToggle    = document.getElementById("toggle-js-blocker");
-const blockerStatusText   = document.getElementById("blocker-status-text");
-
-
 // On popup open, mirror the stored state
 chrome.storage.local.get("blocked", ({ blocked }) => {
   jsSettingsToggle.checked = Boolean(blocked);
@@ -107,12 +106,12 @@ chrome.storage.local.get("blocked", ({ blocked }) => {
   blockerStatusText.classList.toggle('inactive', !blocked);
 });
 
-  // Tell background to set JS-Blocker on/off
-  jsSettingsToggle.addEventListener("change", () => {
-    chrome.runtime.sendMessage({ setBlocked: jsSettingsToggle.checked }, ({ blocked }) => {
-      blockerStatusText.innerText = blocked ? "ACTIVE" : "INACTIVE";
-      blockerStatusText.classList.toggle('active', blocked);
-      blockerStatusText.classList.toggle('inactive', !blocked);
+// Tell background to set JS-Blocker on/off
+jsSettingsToggle.addEventListener("change", () => {
+  chrome.runtime.sendMessage({ setBlocked: jsSettingsToggle.checked }, ({ blocked }) => {
+    blockerStatusText.innerText = blocked ? "ACTIVE" : "INACTIVE";
+    blockerStatusText.classList.toggle('active', blocked);
+    blockerStatusText.classList.toggle('inactive', !blocked);
 
     // Prompt user to refresh
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
