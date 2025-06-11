@@ -6,6 +6,9 @@ const detailedResults = document.getElementById("detailed-results");
 const downloadBtn = document.getElementById("download-log");
 const vulnCountText = document.getElementById("vuln-count"); // New element for vuln count
 const scanContainer = document.getElementById("scan-container");
+const classificationBtn = document.getElementById("classification-buttons");
+const whitelistBtn = document.getElementById("whitelist-btn");
+const blacklistBtn = document.getElementById("blacklist-btn");
 
 const scanTabBtn = document.getElementById("scan-tab-btn");
 const settingsTabBtn = document.getElementById("settings-tab-btn");
@@ -420,6 +423,9 @@ function startScan() {
                 });
               };
 
+              //show whitelist/blacklist button
+              classificationBtn.style.display = "inline-block";
+              
                 resetScanButton();
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;

@@ -43,6 +43,11 @@
       <button id="download-log" style="display: none; margin-top: 1em;">
         Download Scan Log
       </button>
+      <br></br>
+      <div id="classification-buttons" style="display: none; margin-top: 1em;">
+        <button id="whitelistBtn" class="action-button">Add to Whitelist</button>
+        <button id="blacklistBtn" class="action-button">Add to Blacklist</button>
+      </div>
     </div>
   </div>
 
@@ -92,8 +97,8 @@
     <h1>Manage Websites</h1>
     <button id="reset-lists">Reset Lists</button>
     <div class="tab-nav">
-      <button class="nav-tab active" id="whitelist-tab-btn">Whitelist</button>
-      <button class="nav-tab" id="blacklist-tab-btn">Blacklist</button>
+      <button class="nav-tab active" id="whitelist-tab-btn">Trusted</button>
+      <button class="nav-tab" id="blacklist-tab-btn">Untrusted</button>
     </div>
     
     <div id="whitelist-tab" style="display: block;" class="list-box">

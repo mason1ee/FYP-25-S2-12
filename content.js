@@ -1,12 +1,6 @@
 // Global scan result storage
 let lastThreats = [];
 let lastProtocol = "";
-let whitelist = [];
-let blacklist = [];
-
-
-
-
 
 // Trusted CDN list
 const trustedCDNs = [
@@ -96,29 +90,6 @@ function analyzePage() {
 
   const finishAnalysis = () => {
     lastThreats = threats;
-    const site = window.location.hostname;
-    const classification = classifySite(threats);
-
-    if (classification === "whitelist") whitelist.push(site);
-    else if (classification === "blacklist") blacklist.push(site);
-
-    chrome.storage.local.get(["whitelist", "blacklist"], (data) => {
-      const wl = new Set(data.whitelist || []);
-      const bl = new Set(data.blacklist || []);
-
-      if (classification === "whitelist") {
-        wl.add(site);
-        bl.delete(site);
-      } else {
-        bl.add(site);
-        wl.delete(site);
-      }
-
-      chrome.storage.local.set({
-        whitelist: Array.from(wl),
-        blacklist: Array.from(bl)
-      });
-    });
 
     chrome.runtime.sendMessage({
       type: "page-analysis-result",
@@ -276,18 +247,6 @@ function analyzePage() {
   });
 
   if (pendingFetches === 0) finishAnalysis();
-}
-
-function classifySite(threats) {
-  const threatCount = threats.length;
-  const hasCriticalThreat = threats.some((t) =>
-    typeof t === "object" &&
-    (t.error?.includes("eval") || (typeof t === "string" && t.includes("HTTP")))
-  );
-  const isInsecure = window.location.protocol !== "https:";
-  return (isInsecure || hasCriticalThreat || threatCount > 20)
-    ? "blacklist"
-    : "whitelist";
 }
 
 // Listen for scan-related messages

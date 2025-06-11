@@ -12,6 +12,47 @@ document.addEventListener("DOMContentLoaded", () => {
     const whitelistSortBtn = document.getElementById("whitelist-sort");
     const blacklistSortBtn = document.getElementById("blacklist-sort");
 
+    const whitelistBtn = document.getElementById("whitelistBtn");
+    const blacklistBtn = document.getElementById("blacklistBtn");
+
+  whitelistBtn.addEventListener("click", () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        const hostname = new URL(tabs[0].url).hostname;
+        chrome.storage.local.get({ whitelist: [] }, (data) => {
+          let currentList = data.whitelist;
+          if (!currentList.includes(hostname)) {
+            currentList.push(hostname);
+            chrome.storage.local.set({ whitelist: currentList }, () => {
+              alert(`Added ${hostname} to the whitelist.`);
+            });
+          } else {
+            alert(`${hostname} is already whitelisted.`);
+          }
+        });
+      }
+    });
+  });
+
+  blacklistBtn.addEventListener("click", () => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        const hostname = new URL(tabs[0].url).hostname;
+        chrome.storage.local.get({ blacklist: [] }, (data) => {
+          let currentList = data.blacklist;
+          if (!currentList.includes(hostname)) {
+            currentList.push(hostname);
+            chrome.storage.local.set({ blacklist: currentList }, () => {
+              alert(`Added ${hostname} to the blacklist.`);
+            });
+          } else {
+            alert(`${hostname} is already blacklisted.`);
+          }
+        });
+      }
+    });
+  });
+
     function clearTable(tableBody) {
       while (tableBody.firstChild) {
         tableBody.removeChild(tableBody.firstChild);

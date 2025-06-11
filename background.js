@@ -128,3 +128,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return false;
 });
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete" && tab.url) {
+    const url = new URL(tab.url);
+    const hostname = url.hostname;
+
+    chrome.storage.local.get({ blacklist: [] }, (data) => {
+      const blacklist = data.blacklist || [];
+      if (blacklist.includes(hostname)) {
+        chrome.scripting.executeScript({
+          target: { tabId },
+          func: () => {
+            alert("⚠️ Warning: This site is in your blacklist!");
+          }
+        });
+      }
+    });
+  }
+});
