@@ -18,17 +18,32 @@ chrome.runtime.onInstalled.addListener(() => {
   console.log('Client-side Security Script Inspector extension installed');
 
   // Ensure default whitelist/blacklist
-  chrome.storage.local.get(["whitelist", "blacklist"], (data) => {
-    if (!data.whitelist || !data.blacklist) {
-      chrome.storage.local.set({
-        whitelist: ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"],
-        blacklist: ["evil.com", "maliciousdomain.net"]
+  chrome.storage.local.get(["whitelist", "blacklist", "blocked"], (data) => {
+    const updates = {};
+
+    if (!data.whitelist) {
+      updates.whitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
+    }
+
+    if (!data.blacklist) {
+      updates.blacklist = ["evil.com", "maliciousdomain.net"];
+    }
+
+    // Explicitly set 'blocked' to false if undefined
+    if (typeof data.blocked !== "boolean") {
+      updates.blocked = false;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      chrome.storage.local.set(updates, () => {
+        // Only apply blocker state after setting defaults
+        applyBlockerState();
       });
+    } else {
+      // Apply blocker state immediately if no updates needed
+      applyBlockerState();
     }
   });
-
-  // Apply blocker state even on reload
-  applyBlockerState();
 });
 
 chrome.runtime.onStartup.addListener(() => {

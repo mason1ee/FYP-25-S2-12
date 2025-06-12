@@ -132,8 +132,9 @@ chrome.storage.local.get("blocked", ({ blocked }) => {
 
 // Sync dark mode setting from storage
 chrome.storage.local.get("darkMode", ({ darkMode }) => {
-  document.body.classList.toggle("dark-mode", darkMode);
-  darkModeToggle.checked = Boolean(darkMode);
+  const isDarkMode = Boolean(darkMode); // false if undefined
+  document.body.classList.toggle("dark-mode", isDarkMode);
+  darkModeToggle.checked = isDarkMode;
 });
 
 // Toggle dark mode
@@ -143,7 +144,6 @@ darkModeToggle.addEventListener("change", () => {
   chrome.storage.local.set({ darkMode: enabled });
   applyDarkModeStylesToTable();
 });
-
 
 // Tell background to set JS-Blocker on/off
 jsSettingsToggle.addEventListener("change", () => {
