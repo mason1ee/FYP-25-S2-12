@@ -4,12 +4,12 @@
 
 ## CSIT-25-S2-22: Client-Side Script Security Inspector
 
-- _metadata
-    - For JS Blocker.
-
 - Assets
     - styles.css -
     Style for the extension written here.
+
+- _metadata
+    - For JS Blocker.
 
 - acorn.min.js -
 External library used for traversing JavaScript source code. This is necessary in order to perform static code analysis for JavaScript.
