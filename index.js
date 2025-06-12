@@ -298,9 +298,11 @@ function startScan() {
   getTabIdForScanning((tabId) => {
     if (!tabId) {
       clearInterval(interval);
-      resultText.textContent = "No valid tab ID found for scanning.";
+      resultText.textContent = "Cannot scan this page. Restricted or unsupported URL.";
+      //No valid tab ID found for scanning.";
       statusText.textContent = "";
-      console.error("No valid tab ID found.");
+      console.error("Cannot scan this page. Restricted or unsupported URL.");
+      //"No valid tab ID found.");
       resetScanButton();
       return;
     }
