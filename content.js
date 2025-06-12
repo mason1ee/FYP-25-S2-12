@@ -1,9 +1,14 @@
 // Global scan result storage
-let lastThreats = [];
-let lastProtocol = "";
+if (typeof lastThreats === "undefined") {
+  var lastThreats = [];
+}
+
+if (typeof lastProtocol === "undefined") {
+  var lastProtocol = "";
+}
 
 // Trusted CDN list
-const trustedCDNs = [
+var trustedCDNs = [
   "cdnjs.cloudflare.com",
   "cdn.jsdelivr.net",
   "ajax.googleapis.com",
@@ -41,27 +46,27 @@ function isSuspiciousDomain(url) {
 })();
 
 // Helper: Common CSRF token name patterns
-const csrfTokenPattern = /csrf|token|authenticity|xsrf/i;
+var csrfTokenPattern = /csrf|token|authenticity|xsrf/i;
 
 // Main scanner
 function analyzePage() {
   lastThreats = [];
   lastProtocol = window.location.protocol;
-  const scripts = Array.from(document.scripts);
-  const forms = Array.from(document.forms);
+  var scripts = Array.from(document.scripts);
+  var forms = Array.from(document.forms);
   let threats = [];
   let pendingFetches = 0;
   let completedFetches = 0;
 
   // Insecure form detection & CSRF token presence in forms
   forms.forEach((form, i) => {
-    const action = form.getAttribute("action") || "";
+    var action = form.getAttribute("action") || "";
     if (action && !action.startsWith("https://")) {
       threats.push(`Form ${i} sends data insecurely over HTTP`);
     }
 
-    const hiddenInputs = Array.from(form.querySelectorAll('input[type="hidden"]'));
-    const hasCSRFToken = hiddenInputs.some(input =>
+    var hiddenInputs = Array.from(form.querySelectorAll('input[type="hidden"]'));
+    var hasCSRFToken = hiddenInputs.some(input =>
       csrfTokenPattern.test(input.name) || csrfTokenPattern.test(input.id)
     );
     if (!hasCSRFToken) {
@@ -69,13 +74,13 @@ function analyzePage() {
     }
   });
 
-  const unsafeJSUsage = (code, label) => {
+  var unsafeJSUsage = (code, label) => {
     if (/\.value/.test(code)) {
       threats.push(`Unsafe JavaScript usage of inputs in ${label}`);
     }
   };
 
-  const processCode = (code, label) => {
+  var processCode = (code, label) => {
     try {
       acorn.parse(code, { ecmaVersion: 2020 });
       unsafeJSUsage(code, label);

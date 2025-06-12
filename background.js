@@ -1,4 +1,6 @@
-let lastSecurityHeaders = {};
+if (typeof lastSecurityHeaders === "undefined"){
+  var lastSecurityHeaders = {};
+}
 
 function applyBlockerState() {
   chrome.storage.local.get('blocked', ({ blocked }) => {
