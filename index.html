@@ -2,7 +2,8 @@
 <html>
 <head>
   <link rel="stylesheet" href="Assets/styles.css">
-  <title>Webbed | FYP-25-S2-12 | Client-Side Script Security Inspector</title>
+  <title>Webbed | FYP-25-S2-12</title>
+  <link rel="icon" href="Assets/logo/logo16x16.png" type="image/png">
 </head>
 <body>
   <button id="popout-btn" title="Pop out to a new window" aria-label="Pop out">
@@ -27,7 +28,7 @@
   <div id="scan-tab">
     <h2>Website Scan</h2>
 
-    <button id="scan-button">Scan</button>
+    <button id="scan-button" title="Perform a Scan on current website" >Scan</button>
 
     <div id="scan-container">
       <div id="progress-container">
@@ -55,17 +56,9 @@
   <div id="settings-tab" class="section" style="display: none;">
 
     <div class="setting-item">
-      <span>Settings 1</span>
+      <span>Dark Mode</span>
       <label class="switch">
-        <input type="checkbox">
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-item">
-      <span>Settings 2</span>
-      <label class="switch">
-        <input type="checkbox">
+        <input type="checkbox" id="dark-mode-toggle">
         <span class="slider"></span>
       </label>
     </div>
@@ -80,7 +73,7 @@
 
     <!-- JS Blocker on/off switch -->
     <div class="setting-item" style="margin-top:1em;">
-      <span>Enable JS Blocker</span>
+      <span>JS Blocker</span>
       <label class="switch">
         <input type="checkbox" id="toggle-js-blocker">
         <span class="slider"></span>
@@ -88,8 +81,19 @@
     </div>
 
     <div id="blocker-status" style="margin-top:1em;">
-    Status: <span id="blocker-status-text">Loading…</span>
-  </div>
+      Status: <span id="blocker-status-text">Loading…</span>
+    </div>
+
+    <div id="credits-banner">
+      <span>Webbed</span>
+      <img src="Assets/logo/logo16x16.png">
+      <br>
+      <span>Client-Side Script Security Inspector</span>
+      <br>
+      <span>FYP-25-S2-12</span>
+    </div>
+
+
   </div>
 
   <!-- Websites Tab -->

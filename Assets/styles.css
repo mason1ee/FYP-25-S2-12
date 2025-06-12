@@ -1,10 +1,10 @@
-body {
+  body {
     font-family: Arial, sans-serif;
     padding: 20px;
     min-width: 300px;
   }
   
-  /* Popout button */
+/* Popout button */
 
   #popout-btn {
     background-color: #007bff;
@@ -32,9 +32,10 @@ body {
     stroke: white;
   }
   
-  /* End of Popout button */
+/* End of Popout button */
 
-  /* Top navigation */
+/* Top navigation */
+
   .tab-nav {
     display: flex;
     justify-content: space-around;
@@ -54,9 +55,10 @@ body {
     color: white;
   }
 
-  /* End of Top navigation */
+/* End of Top navigation */
   
-  /* Scan UI */
+/* Scan UI */
+
   .loader-container {
     width: 100%;
     background: #ccc;
@@ -78,9 +80,10 @@ body {
     font-weight: bold;
   }
 
-  /* End of Scan UI */
+/* End of Scan UI */
 
-  /* Switches */
+/* Switches */
+
   .switch {
     position: relative;
     display: inline-block;
@@ -126,9 +129,10 @@ body {
     transform: translateX(26px);
   }
   
-  /* End of Switches */
+/* End of Switches */
 
-  /* Settings Layout */
+/* Settings Layout */
+
   #settings-tab.section {
     display: flex;
     flex-direction: column;
@@ -141,9 +145,10 @@ body {
     margin-bottom: 10px;
   }
 
-  /* End of Settings Layout */
+/* End of Settings Layout */
 
-  /* Start of button css */
+/* Start of button css */
+
   #scan-button {
     padding: 12px 30px;
     border-radius: 50px;
@@ -206,6 +211,7 @@ body {
   }
  
   /* Websites Part */
+
   .list-box {
     flex: 1;
     margin: 0;
@@ -250,9 +256,11 @@ body {
     background-color: #007BFF;
     color: white;
   }
+
 /* End of button css*/
 
 /* Start of download log button css */
+
   #download-log {
   display: inline-block;
   margin-right: 10px;
@@ -273,28 +281,112 @@ body {
   color: #339DFF;
   box-shadow: 0 4px 4px rgba(83, 100, 255, 0.32);
   }
+
 /* End of download log button css */
 
- #blocker-status-text.active{
-  color : green;
- }
+  #blocker-status-text.active{
+    color : green;
+  }
   #blocker-status-text.inactive{
     color : red;
   }
 
-/*Manually classification*/
-.action-button {
-  padding: 8px 16px;
-  border-radius: 8px;
-  background-color: #007BFF;
-  color: white;
-  border: none;
-  font-size: 13px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  margin: 5px 0;
+/* Start of Manually classification */
+
+  .action-button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 5px 0;
+  }
+
+  .action-button:hover {
+    background-color: #0056b3;
+  }
+
+/* End of Manually classification */
+
+/* Start of Dark Mode */
+
+body.dark-mode {
+  background-color: #121212;
+  color: #f0f0f0;
 }
 
-.action-button:hover {
-  background-color: #0056b3;
+body.dark-mode .tab-content {
+  background-color: #1e1e1e;
 }
+
+body.dark-mode button {
+  background-color: #333;
+  color: #f0f0f0;
+  border: 1px solid #666;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background-color: #2a2a2a;
+  color: #f0f0f0;
+  border: 1px solid #555;
+}
+
+/* Enhanced dark mode tables for scan results readability */
+
+body.dark-mode table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #1c1c1c;
+  color: #eee;
+  border: 1px solid #444;
+}
+
+body.dark-mode th, 
+body.dark-mode td {
+  border: 1px solid #555;
+  padding: 8px;
+  text-align: center;
+  vertical-align: middle;
+  color: #eee;
+  background-color: #222;
+}
+
+body.dark-mode thead th {
+  background-color: #222f4b;   /* stronger blue for headings */
+  color: #ffffff;
+  font-weight: bold;
+  border-bottom: 3px solid #4a90e2;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-mode tbody tr:hover {
+  background-color: #2a2a2a;
+}
+
+body.dark-mode table a,
+body.dark-mode table button {
+  color: #81aaff;
+}
+
+
+/* End of Dark Mode */
+
+
+#credits-banner {
+  text-align: center;
+  color: #666666;
+  font-size: 14px;
+  font-family: Arial, sans-serif;
+  margin-top: 50px;      /* less space above */
+  margin-bottom: 1px;  /* add some space below */
+}
+  
+body.dark-mode #credits-banner {
+  color: #aaaaaa;
+}
+

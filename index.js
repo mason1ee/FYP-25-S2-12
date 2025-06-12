@@ -1,10 +1,13 @@
+const popoutButton = document.getElementById("popout-btn");
+const darkModeToggle = document.getElementById("dark-mode-toggle");
+
 const scanButton = document.getElementById("scan-button");
 const progressBar = document.getElementById("progress-bar");
 const statusText = document.getElementById("status-text");
 const resultText = document.getElementById("scan-result");
 const detailedResults = document.getElementById("detailed-results");
 const downloadBtn = document.getElementById("download-log");
-const vulnCountText = document.getElementById("vuln-count"); // New element for vuln count
+const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
 const classificationBtn = document.getElementById("classification-buttons");
 const whitelistBtn = document.getElementById("whitelist-btn");
@@ -22,13 +25,18 @@ const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
 const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
 
-const popoutButton = document.getElementById("popout-btn");
-
-// — NEW: JS-Blocker toggle in Settings —————————
 const jsSettingsToggle = document.getElementById("toggle-js-blocker");
 const blockerStatusText = document.getElementById("blocker-status-text");
 
 scanContainer.style.display = "none";
+
+if (popoutButton && chrome.windows) {
+  chrome.windows.getCurrent((win) => {
+    if (win.type === "popup") {
+      popoutButton.style.display = "none";
+    }
+  });
+}
 
 // Tab navigation
 scanTabBtn.addEventListener("click", () => {
@@ -93,6 +101,18 @@ if (popoutButton) {
   });
 }
 
+// Hide popout button if we're already in a popout window
+chrome.windows.getCurrent({ populate: false }, (window) => {
+  if (window && window.type === "popup") {
+    // Small popups opened by the extension will have height less than typical popouts
+    if (window.height > 600 || window.width > 400) {
+      const popoutBtn = document.getElementById("popout-btn");
+      if (popoutBtn) popoutBtn.style.display = "none";
+    }
+  }
+});
+
+
 function resetScanButton() {
   isScanning = false;
   scanButton.disabled = false;
@@ -108,6 +128,20 @@ chrome.storage.local.get("blocked", ({ blocked }) => {
   blockerStatusText.classList.toggle('active', blocked);
   blockerStatusText.classList.toggle('inactive', !blocked);
 });
+
+// Sync dark mode setting from storage
+chrome.storage.local.get("darkMode", ({ darkMode }) => {
+  document.body.classList.toggle("dark-mode", darkMode);
+  darkModeToggle.checked = Boolean(darkMode);
+});
+
+// Toggle dark mode
+darkModeToggle.addEventListener("change", () => {
+  const enabled = darkModeToggle.checked;
+  document.body.classList.toggle("dark-mode", enabled);
+  chrome.storage.local.set({ darkMode: enabled });
+});
+
 
 // Tell background to set JS-Blocker on/off
 jsSettingsToggle.addEventListener("change", () => {
@@ -231,6 +265,7 @@ function startScan() {
       clearInterval(interval);
       resultText.textContent = "No valid tab ID found for scanning.";
       statusText.textContent = "";
+      console.error("No valid tab ID found.");
       resetScanButton();
       return;
     }

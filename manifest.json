@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Webbed | FYP-25-S2-12",
-  "version": "1.1",
+  "version": "1.0",
   "description": "Client-Side Script Security Inspector",
+  "icons": {
+    "128": "Assets/logo/logo128x128.png",
+    "48": "Assets/logo/logo48x48.png",
+    "16": "Assets/logo/logo16x16.png"
+  },
   "declarative_net_request": {
     "rule_resources": [
       { "id": "ruleset_1", "enabled": true, "path": "rules.json" }
