@@ -3,6 +3,7 @@ const darkModeToggle = document.getElementById("dark-mode-toggle");
 
 const scanButton = document.getElementById("scan-button");
 const progressBar = document.getElementById("progress-bar");
+const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
 const resultText = document.getElementById("scan-result");
 //const detailedResults = document.getElementById("detailed-results");
@@ -303,7 +304,9 @@ function startScan() {
       statusText.textContent = "";
       console.error("Cannot scan this page. Restricted or unsupported URL.");
       //"No valid tab ID found.");
+      classificationBtn.style.display = "none";
       resetScanButton();
+      progressContainer.style.display="none";
       return;
     }
 

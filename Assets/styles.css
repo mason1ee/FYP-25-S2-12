@@ -291,6 +291,26 @@
     color : red;
   }
 
+/* Start of Reset Lists Button*/
+
+  #reset-lists {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: #339DFF;
+    color: white;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 5px 0;
+  }
+
+  #reset-lists:hover {
+    background-color: #0056b3;
+  }
+
+/* Start of Reset Lists Button*/
+
 /* Start of Manually classification */
 
   .action-button {
