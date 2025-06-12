@@ -262,24 +262,24 @@
 /* Start of download log button css */
 
   #download-log {
-  display: inline-block;
-  margin-right: 10px;
-  background: #339DFF;
-  color: #fff;
-  text-decoration: none;
-  font-size: 13px;
-  line-height: 38px;
-  border-radius: 50px;
-  -webkit-transition: all 0.3s;
-  transition: all 0.3s;
-  width: 170px;
-  text-align: center;
+    display: inline-block;
+    margin-right: 10px;
+    background: #339DFF;
+    color: #fff;
+    text-decoration: none;
+    font-size: 13px;
+    line-height: 38px;
+    border-radius: 50px;
+    -webkit-transition: all 0.3s;
+    transition: all 0.3s;
+    width: 170px;
+    text-align: center;
   }
 
   #download-log:hover {
-  background: #fff;
-  color: #339DFF;
-  box-shadow: 0 4px 4px rgba(83, 100, 255, 0.32);
+    background: #fff;
+    color: #339DFF;
+    box-shadow: 0 4px 4px rgba(83, 100, 255, 0.32);
   }
 
 /* End of download log button css */
@@ -296,7 +296,7 @@
   .action-button {
     padding: 8px 16px;
     border-radius: 8px;
-    background-color: #007BFF;
+    background: #339DFF;
     color: white;
     border: none;
     font-size: 13px;
@@ -313,80 +313,92 @@
 
 /* Start of Dark Mode */
 
-body.dark-mode {
-  background-color: #121212;
-  color: #f0f0f0;
-}
+  body.dark-mode {
+    background-color: #121212;
+    color: #f0f0f0;
+  }
 
-body.dark-mode .tab-content {
-  background-color: #1e1e1e;
-}
+  body.dark-mode .tab-content {
+    background-color: #1e1e1e;
+  }
 
-body.dark-mode button {
-  background-color: #333;
-  color: #f0f0f0;
-  border: 1px solid #666;
-}
+  body.dark-mode button {
+    background-color: #333;
+    color: #f0f0f0;
+    border: 1px solid #666;
+  }
 
-body.dark-mode input,
-body.dark-mode select,
-body.dark-mode textarea {
-  background-color: #2a2a2a;
-  color: #f0f0f0;
-  border: 1px solid #555;
-}
+  body.dark-mode .action-button {
+    background-color: #339DFF;
+    color: white;
+    border: none;
+  }
+
+  body.dark-mode .action-button:hover {
+    background-color: #0056b3;
+  }
+
+  body.dark-mode input,
+  body.dark-mode select,
+  body.dark-mode textarea {
+    background-color: #2a2a2a;
+    color: #f0f0f0;
+    border: 1px solid #555;
+  }
 
 /* Enhanced dark mode tables for scan results readability */
 
-body.dark-mode table {
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #1c1c1c;
-  color: #eee;
-  border: 1px solid #444;
-}
+  body.dark-mode table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #1c1c1c;
+    color: #eee;
+    border: 1px solid #444;
+  }
 
-body.dark-mode th, 
-body.dark-mode td {
-  border: 1px solid #555;
-  padding: 8px;
-  text-align: center;
-  vertical-align: middle;
-  color: #eee;
-  background-color: #222;
-}
+  body.dark-mode th, 
+  body.dark-mode td {
+    border: 1px solid #555;
+    padding: 8px;
+    text-align: center;
+    vertical-align: middle;
+    color: #eee;
+    background-color: #222;
+  }
 
-body.dark-mode thead th {
-  background-color: #222f4b;   /* stronger blue for headings */
-  color: #ffffff;
-  font-weight: bold;
-  border-bottom: 3px solid #4a90e2;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
-}
+  body.dark-mode thead th {
+    background-color: #222f4b;   /* stronger blue for headings */
+    color: #ffffff;
+    font-weight: bold;
+    border-bottom: 3px solid #4a90e2;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+  }
 
-body.dark-mode tbody tr:hover {
-  background-color: #2a2a2a;
-}
+  body.dark-mode tbody tr:hover {
+    background-color: #2a2a2a;
+  }
 
-body.dark-mode table a,
-body.dark-mode table button {
-  color: #81aaff;
-}
+  body.dark-mode table a,
+  body.dark-mode table button {
+    color: #81aaff;
+  }
 
 
 /* End of Dark Mode */
 
+/* Start of Credits Banner */
 
-#credits-banner {
-  text-align: center;
-  color: #666666;
-  font-size: 14px;
-  font-family: Arial, sans-serif;
-  margin-top: 50px;      /* less space above */
-  margin-bottom: 1px;  /* add some space below */
-}
-  
-body.dark-mode #credits-banner {
-  color: #aaaaaa;
-}
+  #credits-banner {
+    text-align: center;
+    color: #666666;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    margin-top: 50px;      /* less space above */
+    margin-bottom: 1px;  /* add some space below */
+  }
+    
+  body.dark-mode #credits-banner {
+    color: #aaaaaa;
+  }
 
+/* End of Credits Banner */

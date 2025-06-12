@@ -140,6 +140,7 @@ darkModeToggle.addEventListener("change", () => {
   const enabled = darkModeToggle.checked;
   document.body.classList.toggle("dark-mode", enabled);
   chrome.storage.local.set({ darkMode: enabled });
+  applyDarkModeStylesToTable();
 });
 
 
@@ -227,6 +228,40 @@ function fallbackToActiveTab(callback) {
     }
   });
 }
+
+function applyDarkModeStylesToTable() {
+  const isDark = document.body.classList.contains("dark-mode");
+
+  const inlineCell = document.getElementById("inline-count-cell");
+  const externalCell = document.getElementById("external-count-cell");
+
+  if (inlineCell && externalCell) {
+    // Style the data cells
+    inlineCell.style.backgroundColor = isDark ? "#662222" : "#ffcccc";
+    inlineCell.style.color = isDark ? "#ffffff" : "#000000";
+
+    externalCell.style.backgroundColor = isDark ? "#226622" : "#ccffcc";
+    externalCell.style.color = isDark ? "#ffffff" : "#000000";
+  }
+
+  // Style the entire script summary table, if it exists
+  const scriptSummary = document.getElementById("script-summary");
+  if (scriptSummary) {
+    scriptSummary.style.border = "1px solid " + (isDark ? "#888" : "#ccc");
+
+    const ths = scriptSummary.querySelectorAll("th");
+    ths.forEach((th) => {
+      th.style.backgroundColor = isDark ? "#444" : "#f0f0f0";
+      th.style.color = isDark ? "#ffffff" : "#000000";
+    });
+
+    const tds = scriptSummary.querySelectorAll("td");
+    tds.forEach((td) => {
+      td.style.border = "1px solid " + (isDark ? "#666" : "#ccc");
+    });
+  }
+}
+
 
 function startScan() {
   if (isScanning) return;
@@ -366,6 +401,11 @@ function startScan() {
 
                   const externalCount = externalScripts.length;
 
+                  const inlineHeader = document.createElement("h2");
+                  inlineHeader.textContent = "Website Scripts";
+                  inlineHeader.style.marginTop = "20px";
+                  inlineHeader.style.marginBottom = "10px";
+
                   const scriptSummary = document.createElement("table");
                   scriptSummary.style.marginTop = "1em";
                   scriptSummary.style.borderCollapse = "collapse";
@@ -375,11 +415,15 @@ function startScan() {
                   ["Inline", "External"].forEach((type) => {
                     const th = document.createElement("th");
                     th.textContent = type;
-                    th.style.padding = "8px";
-                    th.style.textAlign = "center";
-                    th.style.backgroundColor = "#f0f0f0";
+                    th.style.cssText = `
+                      padding: 8px;
+                      text-align: center;
+                      background-color: ${document.body.classList.contains("dark-mode") ? "#444" : "#f0f0f0"};
+                      color: ${document.body.classList.contains("dark-mode") ? "#fff" : "#000"};
+                    `;
                     headerRow.appendChild(th);
                   });
+
 
                   const row = scriptSummary.insertRow();
                   const inlineCell = row.insertCell();
@@ -388,28 +432,72 @@ function startScan() {
                   inlineCell.textContent = inlineCount;
                   externalCell.textContent = externalCount;
 
-                  inlineCell.style.backgroundColor = "#ffcccc"; // red-ish for inline
-                  inlineCell.style.textAlign = "center";
-                  inlineCell.style.padding = "6px";
+                  inlineCell.id = "inline-count-cell";
+                  externalCell.id = "external-count-cell";
 
-                  externalCell.style.backgroundColor = "#ccffcc"; // green-ish for external
-                  externalCell.style.textAlign = "center";
-                  externalCell.style.padding = "6px";
+                  // Remove old summary table and "View External URLs" button if they exist
+                  // Remove old summary table and "View External URLs" button if they exist
+                  const oldTable = document.querySelector("#inline-count-cell")?.closest("table");
+                  if (oldTable) oldTable.remove();
 
+                  const oldExternalBtn = document.getElementById("external-urls-btn");
+                  if (oldExternalBtn) oldExternalBtn.remove();
+
+                  // Only add "Website Scripts" <h2> if it doesn't already exist
+                  let oldInlineHeader = document.querySelector("#website-scripts-header");
+                  if (!oldInlineHeader) {
+                    oldInlineHeader = document.createElement("h2");
+                    oldInlineHeader.id = "website-scripts-header";  // add an ID for easy future reference
+                    oldInlineHeader.textContent = "Website Scripts";
+                    oldInlineHeader.style.marginTop = "20px";
+                    oldInlineHeader.style.marginBottom = "10px";
+                    detailedResults.parentElement.appendChild(oldInlineHeader);
+                  }
+                  
                   detailedResults.parentElement.appendChild(scriptSummary);
 
+                  // Apply dark mode styles immediately after building the table
+                  applyDarkModeStylesToTable();
+
                   if (externalCount > 0) {
-                    const showExternalBtn = document.createElement("button");
-                    showExternalBtn.textContent = "View External URLs";
-                    showExternalBtn.style.marginTop = "10px";
-                    showExternalBtn.addEventListener("click", () => {
-                      const urls = externalScripts.map(s => s.url || s.scriptIndex || "unknown");
-                      alert("External Script URLs:\n" + urls.join("\n"));
-                    });
-                    detailedResults.parentElement.appendChild(showExternalBtn);
+                    // Avoid adding multiple "View External URLs" buttons
+                    const existingBtn = document.getElementById("external-urls-btn");
+                    if (!existingBtn) {
+                      const showExternalBtn = document.createElement("button");
+                      showExternalBtn.id = "external-urls-btn";
+                      showExternalBtn.textContent = "View External URLs of scripts";
+                      
+                      showExternalBtn.style.cssText = `
+                        padding: 8px 16px;
+                        border-radius: 8px;
+                        background: #339DFF;
+                        color: white;
+                        border: none;
+                        font-size: 13px;
+                        cursor: pointer;
+                        transition: background-color 0.3s ease;
+                        margin: 20px 0;
+                      `;
+
+                      showExternalBtn.onmouseover = () => {
+                        showExternalBtn.style.backgroundColor = "#0056b3";
+                      };
+
+                      showExternalBtn.onmouseout = () => {
+                        showExternalBtn.style.backgroundColor = "#007BFF";
+                      };
+
+                      showExternalBtn.addEventListener("click", () => {
+                        const urls = externalScripts.map(s => s.url || s.scriptIndex || "unknown");
+                        alert("External Script URLs:\n" + urls.join("\n"));
+                      });
+                      detailedResults.parentElement.appendChild(showExternalBtn);
+                    }
                   }
+
                 });
-                // Show the download button
+                
+              // Show the download button
               downloadBtn.style.display = "inline-block";
 
               downloadBtn.onclick = () => {
@@ -458,8 +546,8 @@ function startScan() {
                 });
               };
 
-              //show whitelist/blacklist button
-              classificationBtn.style.display = "inline-block";
+                //show whitelist/blacklist button
+                classificationBtn.style.display = "inline-block";
               
                 resetScanButton();
                 chrome.runtime.onMessage.removeListener(onScanResult);
