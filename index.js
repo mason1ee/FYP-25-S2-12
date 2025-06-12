@@ -5,7 +5,7 @@ const scanButton = document.getElementById("scan-button");
 const progressBar = document.getElementById("progress-bar");
 const statusText = document.getElementById("status-text");
 const resultText = document.getElementById("scan-result");
-const detailedResults = document.getElementById("detailed-results");
+//const detailedResults = document.getElementById("detailed-results");
 const downloadBtn = document.getElementById("download-log");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
@@ -275,7 +275,7 @@ function startScan() {
 
   progressBar.style.width = "0%";
   resultText.textContent = "";
-  detailedResults.innerHTML = "";
+  //detailedResults.innerHTML = "";
   vulnCountText.textContent = "";  // Clear vuln count on new scan
   statusText.textContent = "Scanning in Progress...";  // Show scanning status
 
@@ -373,34 +373,46 @@ function startScan() {
 
                 const allThreats = [...contentThreats, ...headerThreats];
 
+                // original code to show all after scan
+
+                // if (allThreats.length > 0) {
+                //   resultText.textContent = "Website is insecure!";
+                //   resultText.style.color = "red";
+                //   detailedResults.innerHTML = "";
+                //   allThreats.forEach(threat => {
+                //     const li = document.createElement("li");
+                //     li.textContent = typeof threat === "string" ? threat : JSON.stringify(threat);
+                //     detailedResults.appendChild(li);
+                //   });
+                //   vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
+                // }
+
                 if (allThreats.length > 0) {
                   resultText.textContent = "Website is insecure!";
                   resultText.style.color = "red";
-                  detailedResults.innerHTML = "";
-                  allThreats.forEach(threat => {
-                    const li = document.createElement("li");
-                    li.textContent = typeof threat === "string" ? threat : JSON.stringify(threat);
-                    detailedResults.appendChild(li);
-                  });
+                  //detailedResults.innerHTML = ""; // Clear detailed list
                   vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
-                } else {
+                }
+
+
+                else {
                   resultText.textContent = "Website appears secure.";
                   resultText.style.color = "green";
-                  detailedResults.innerHTML = "";
+                  //detailedResults.innerHTML = "";
                   vulnCountText.textContent = "";
                 }
 
                 chrome.tabs.sendMessage(tabId, { action: "getContentThreats" }, (res) => {
                   const threats = res?.threats || [];
 
-                  const inlineCount = threats.filter(t =>
-                    typeof t === "string" && t.includes("inline-")
+                  const inlineCount = threats.filter(
+                    t =>(typeof t === "string" && t.includes("inline-")) ||
+                        (typeof t === "object" && t.scriptIndex?.startsWith("inline-"))
                   ).length;
 
                   const externalScripts = threats.filter(t =>
                     typeof t === "object" && t.scriptIndex?.includes("external-")
-                  );
-
+                  )
                   const externalCount = externalScripts.length;
 
                   const inlineHeader = document.createElement("h2");
@@ -438,7 +450,6 @@ function startScan() {
                   externalCell.id = "external-count-cell";
 
                   // Remove old summary table and "View External URLs" button if they exist
-                  // Remove old summary table and "View External URLs" button if they exist
                   const oldTable = document.querySelector("#inline-count-cell")?.closest("table");
                   if (oldTable) oldTable.remove();
 
@@ -446,56 +457,56 @@ function startScan() {
                   if (oldExternalBtn) oldExternalBtn.remove();
 
                   // Only add "Website Scripts" <h2> if it doesn't already exist
-                  let oldInlineHeader = document.querySelector("#website-scripts-header");
-                  if (!oldInlineHeader) {
-                    oldInlineHeader = document.createElement("h2");
-                    oldInlineHeader.id = "website-scripts-header";  // add an ID for easy future reference
-                    oldInlineHeader.textContent = "Website Scripts";
-                    oldInlineHeader.style.marginTop = "20px";
-                    oldInlineHeader.style.marginBottom = "10px";
-                    detailedResults.parentElement.appendChild(oldInlineHeader);
-                  }
+                  // let oldInlineHeader = document.querySelector("#website-scripts-header");
+                  // if (!oldInlineHeader) {
+                  //   oldInlineHeader = document.createElement("h2");
+                  //   oldInlineHeader.id = "website-scripts-header";  // add an ID for easy future reference
+                  //   oldInlineHeader.textContent = "Website Scripts";
+                  //   oldInlineHeader.style.marginTop = "20px";
+                  //   oldInlineHeader.style.marginBottom = "10px";
+                  //   detailedResults.parentElement.appendChild(oldInlineHeader);
+                  // }
                   
-                  detailedResults.parentElement.appendChild(scriptSummary);
+                  //detailedResults.parentElement.appendChild(scriptSummary);
 
                   // Apply dark mode styles immediately after building the table
                   applyDarkModeStylesToTable();
 
-                  if (externalCount > 0) {
-                    // Avoid adding multiple "View External URLs" buttons
-                    const existingBtn = document.getElementById("external-urls-btn");
-                    if (!existingBtn) {
-                      const showExternalBtn = document.createElement("button");
-                      showExternalBtn.id = "external-urls-btn";
-                      showExternalBtn.textContent = "View External URLs of scripts";
+                  // if (externalCount > 0) {
+                  //   // Avoid adding multiple "View External URLs" buttons
+                  //   const existingBtn = document.getElementById("external-urls-btn");
+                  //   if (!existingBtn) {
+                  //     const showExternalBtn = document.createElement("button");
+                  //     showExternalBtn.id = "external-urls-btn";
+                  //     showExternalBtn.textContent = "View External URLs of scripts";
                       
-                      showExternalBtn.style.cssText = `
-                        padding: 8px 16px;
-                        border-radius: 8px;
-                        background: #339DFF;
-                        color: white;
-                        border: none;
-                        font-size: 13px;
-                        cursor: pointer;
-                        transition: background-color 0.3s ease;
-                        margin: 20px 0;
-                      `;
+                  //     showExternalBtn.style.cssText = `
+                  //       padding: 8px 16px;
+                  //       border-radius: 8px;
+                  //       background: #339DFF;
+                  //       color: white;
+                  //       border: none;
+                  //       font-size: 13px;
+                  //       cursor: pointer;
+                  //       transition: background-color 0.3s ease;
+                  //       margin: 20px 0;
+                  //     `;
 
-                      showExternalBtn.onmouseover = () => {
-                        showExternalBtn.style.backgroundColor = "#0056b3";
-                      };
+                  //     showExternalBtn.onmouseover = () => {
+                  //       showExternalBtn.style.backgroundColor = "#0056b3";
+                  //     };
 
-                      showExternalBtn.onmouseout = () => {
-                        showExternalBtn.style.backgroundColor = "#007BFF";
-                      };
+                  //     showExternalBtn.onmouseout = () => {
+                  //       showExternalBtn.style.backgroundColor = "#007BFF";
+                  //     };
 
-                      showExternalBtn.addEventListener("click", () => {
-                        const urls = externalScripts.map(s => s.url || s.scriptIndex || "unknown");
-                        alert("External Script URLs:\n" + urls.join("\n"));
-                      });
-                      detailedResults.parentElement.appendChild(showExternalBtn);
-                    }
-                  }
+                  //     showExternalBtn.addEventListener("click", () => {
+                  //       const urls = externalScripts.map(s => s.url || s.scriptIndex || "unknown");
+                  //       alert("External Script URLs:\n" + urls.join("\n"));
+                  //     });
+                  //     detailedResults.parentElement.appendChild(showExternalBtn);
+                  //   }
+                  // }
 
                 });
                 
@@ -504,14 +515,34 @@ function startScan() {
 
               downloadBtn.onclick = () => {
                 chrome.storage.local.get("blocked", ({ blocked }) => {
-                  const timestamp     = new Date().toISOString();
+                  // UTC Time
+                  //const timestamp = new Date().toISOString();
+
+                  const options = {
+                    timeZone: "Asia/Singapore",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                  };
+
+                  const formatter = new Intl.DateTimeFormat("en-GB", options);
+                  const timestamp = formatter.format(new Date());
+
                   // Count inline vs external entries
-                  const inlineCount   = contentThreats.filter(
-                    th => typeof th === 'object' && th.scriptIndex?.startsWith('inline-')
+                  const inlineCount = contentThreats.filter(
+                    th => (typeof th === "string" && th.includes("inline-")) ||
+                          (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
                   ).length;
+
                   const externalCount = contentThreats.filter(
-                    th => typeof th === 'object' && th.scriptIndex?.startsWith('external-')
+                    th => (typeof th === "object" && th.scriptIndex?.startsWith("external-")) ||
+                          (typeof th === "string" && th.includes("external-"))
                   ).length;
+
 
                   // Build the log with a top‐line summary
                   let log =
@@ -520,11 +551,25 @@ function startScan() {
                     `Scan Timestamp: ${timestamp}\n` +
                     `JS Blocker Active: ${blocked}\n` +
                     `Protocol: ${protocol}\n\n` +
+                    `${allThreats.length} vulnerabilities detected\n\n` +
                     `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found\n\n` +
                     `Threats:\n`;
 
                   // Append each threat, human-readably
                   contentThreats.forEach(th => {
+                    let line;
+                    if (typeof th === 'string') {
+                      line = th;
+                    } else {
+                      const idx = th.scriptIndex || 'unknown';
+                      const url = th.url         || 'n/a';
+                      const err = th.error       ? ' - ' + th.error : '';
+                      line = `[${idx}] ${url}${err}`;
+                    }
+                    log += '- ' + line + '\n';
+                  });
+
+                  headerThreats.forEach(th => {
                     let line;
                     if (typeof th === 'string') {
                       line = th;
