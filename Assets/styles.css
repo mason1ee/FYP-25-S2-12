@@ -1,15 +1,4 @@
-  body {
-    font-family: Arial, sans-serif;
-    padding: 1px 20px 20px 20px;
-    min-width: 300px;
-  }
-  
 /* Popout button */
-
-  #scan-instruction {
-    color: gray; 
-    margin-top: 5px;
-  }
 
   #popout-btn {
     background-color: #007bff;
@@ -61,7 +50,35 @@
   }
 
 /* End of Top navigation */
+
+  body {
+    font-family: Arial, sans-serif;
+    padding: 1px 20px 20px 20px;
+    min-width: 300px;
+
+    transition: background-color 0.3s, color 0.3s;
+  }
   
+  #scan-instruction {
+    color: gray; 
+    margin-top: 5px;
+    margin-bottom: 10px;
+  }
+
+  #scan-status-msg {
+    color: black;
+    margin-top: 5px;
+  }
+
+  #vuln-count {
+    margin-top: 0.3em;
+    font-weight: bold;
+  }
+
+  #download-log {
+    margin-top: 1em;
+  }
+
 /* Scan UI */
 
   .loader-container {
@@ -126,14 +143,14 @@
     border-radius: 50%;
   }
   
-  input:checked + .slider {
+   input:checked + .slider {
     background-color: #2ecc71;
   }
   
   input:checked + .slider:before {
     transform: translateX(26px);
   }
-  
+
 /* End of Switches */
 
 /* Settings Layout */
@@ -148,6 +165,14 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 10px;
+  }
+
+  #toggle-js-blocker {
+    margin-top: 1em;
+  }
+
+  #blocker-status {
+    margin-top: 1em;
   }
 
 /* End of Settings Layout */
@@ -204,10 +229,6 @@
     margin-bottom: 10px;
   }
 
-  #scan-container {
-    display: none;
-  }
-
   #progress-bar {
     height: 100%;
     width: 0%;
@@ -256,6 +277,17 @@
     background-color: #0056b3; /* Slightly darker blue */
   }
 
+  #whitelist-filter,
+  #blacklist-filter {
+    width: 100%;
+    margin-bottom: 5px;
+  }
+
+  #whitelist-sort,
+  #blacklist-sort {
+    margin-bottom: 5px;;
+  }
+
   #whitelist thead th,
   #blacklist thead th {
     background-color: #007BFF;
@@ -299,7 +331,17 @@
 /* Start of Reset Lists Button*/
 
   #reset-lists {
-    padding: 8px 16px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    padding: 8px 16px;      /* More spacing inside the button */
+    border-radius: 8px;     /* Rounded corners */
+    font-size: 13px;
+    margin-bottom: 5px;
+
+    /* padding: 8px 16px;
     border-radius: 8px;
     background: #339DFF;
     color: white;
@@ -307,7 +349,7 @@
     font-size: 13px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    margin: 5px 0;
+    margin: 5px 0; */
   }
 
   #reset-lists:hover {

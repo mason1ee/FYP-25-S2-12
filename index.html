@@ -25,23 +25,24 @@
 
   <!-- Scan Tab -->
   <div id="scan-tab">
-    <h2>Client-Side Script Security Inspector</h2>
-    <p id="scan-instruction" style="color: gray; margin-top: 5px;">
-    Click Scan to start scanning for web vulnerabilities
+    <h2>Script Security Inspector</h2>
+    <p id="scan-instruction">
+      Click Scan to start scanning for web vulnerabilities
+    </p>
     <button id="scan-button" title="Perform a Scan on current website" >Scan</button>
 
-    <div id="scan-container">
+    <div id="scan-container" style="display: none;">
       <div id="progress-container">
         <div id="progress-bar"></div>
       </div>
-      <p id="scan-status-msg" style="color: black; margin-top: 5px; display: none;"></p>
+      <p id="scan-status-msg" style="display: none;"></p>
       <p id="status-text">Waiting to scan...</p>
       <p id="scan-result"></p>
-      <p id="vuln-count" style="margin-top: 0.3em; font-weight: bold;"></p>
+      <p id="vuln-count"></p>
       <ol id="detailed-results"></ol>
 
       <!-- Download Log Button (hidden until after scan) -->
-      <button id="download-log" style="display: none; margin-top: 1em;">
+      <button id="download-log" style="display: none;">
         Download Report
       </button>
       <br></br>
@@ -81,7 +82,7 @@
     </div>
 
     <!-- JS Blocker on/off switch -->
-    <div class="setting-item" style="margin-top:1em;">
+    <div class="setting-item">
       <span>JS Blocker</span>
       <label class="switch">
         <input type="checkbox" id="toggle-js-blocker">
@@ -89,7 +90,7 @@
       </label>
     </div>
 
-    <div id="blocker-status" style="margin-top:1em;">
+    <div id="blocker-status">
       Status: <span id="blocker-status-text">Loading…</span>
     </div>
 
@@ -114,8 +115,8 @@
     </div>
     
     <div id="whitelist-tab" style="display: block;" class="list-box">
-      <input type="text" id="whitelist-filter" placeholder="Filter whitelist..." style="width: 100%; margin-bottom: 5px;">
-      <button id="whitelist-sort" data-order="asc" style="margin-bottom:5px;">Sort Asc</button>
+      <input type="text" id="whitelist-filter" placeholder="Filter whitelist...">
+      <button id="whitelist-sort" data-order="asc">Sort Asc</button>
       <table id="whitelist">
         <thead>
           <tr><th>Whitelist</th></tr>
@@ -125,8 +126,8 @@
     </div>
 
     <div id="blacklist-tab" style="display: none;" class="list-box">
-      <input type="text" id="blacklist-filter" placeholder="Filter blacklist..." style="width: 100%; margin-bottom: 5px;">
-      <button id="blacklist-sort" data-order="asc" style="margin-bottom:5px;">Sort Asc</button>
+      <input type="text" id="blacklist-filter" placeholder="Filter blacklist...">
+      <button id="blacklist-sort" data-order="asc">Sort Asc</button>
       <table id="blacklist">
         <thead>
           <tr><th>Blacklist</th></tr>
