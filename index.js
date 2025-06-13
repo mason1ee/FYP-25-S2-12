@@ -562,6 +562,8 @@ function startScan() {
                         `${allThreats.length} vulnerabilities detected\n\n` +
                         `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found\n\n` +
                         `Threats:\n`;
+                      
+                      var count = 0;
 
                       contentThreats.forEach(th => {
                         let line;
@@ -573,7 +575,8 @@ function startScan() {
                           const err = th.error       ? ' - ' + th.error : '';
                           line = `[${idx}] ${url}${err}`;
                         }
-                        log += '- ' + line + '\n';
+                        count++;
+                        log += '[' + count + '] ' + line + '\n';
                       });
 
                       headerThreats.forEach(th => {
@@ -586,7 +589,8 @@ function startScan() {
                           const err = th.error       ? ' - ' + th.error : '';
                           line = `[${idx}] ${url}${err}`;
                         }
-                        log += '- ' + line + '\n';
+                        count++;
+                        log += '[' + count + '] ' + line + '\n';
                       });
 
                       // Now that the log is fully built, trigger download ONCE here:
