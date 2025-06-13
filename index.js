@@ -563,7 +563,7 @@ function startScan() {
                         `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found\n\n` +
                         `Threats:\n`;
                       
-                      var count = 0;
+                      let count = 0;
 
                       contentThreats.forEach(th => {
                         let line;
