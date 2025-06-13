@@ -268,6 +268,8 @@ function startScan() {
   if (isScanning) return;
   isScanning = true;
 
+  document.getElementById("scan-instruction").style.display = "none";
+
   scanContainer.style.display = "block";
   scanButton.disabled = true;
   scanButton.innerHTML = `<span class="spinner"></span> Scanning...`;

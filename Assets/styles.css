@@ -6,6 +6,11 @@
   
 /* Popout button */
 
+  #scan-instruction {
+    color: gray; 
+    margin-top: 5px;
+  }
+
   #popout-btn {
     background-color: #007bff;
     color: white;
