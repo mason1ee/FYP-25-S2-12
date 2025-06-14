@@ -130,11 +130,31 @@ chrome.storage.local.get("blocked", ({ blocked }) => {
   blockerStatusText.classList.toggle('inactive', !blocked);
 });
 
+// // Sync dark mode setting from storage
+// chrome.storage.local.get("darkMode", ({ darkMode }) => {
+//   const isDarkMode = Boolean(darkMode); // false if undefined
+//   document.body.classList.toggle("dark-mode", isDarkMode);
+//   darkModeToggle.checked = isDarkMode;
+// });
+
+// // Toggle dark mode
+// darkModeToggle.addEventListener("change", () => {
+//   const enabled = darkModeToggle.checked;
+//   document.body.classList.toggle("dark-mode", enabled);
+//   chrome.storage.local.set({ darkMode: enabled });
+//   applyDarkModeStylesToTable();
+// });
+
 // Sync dark mode setting from storage
 chrome.storage.local.get("darkMode", ({ darkMode }) => {
   const isDarkMode = Boolean(darkMode); // false if undefined
   document.body.classList.toggle("dark-mode", isDarkMode);
   darkModeToggle.checked = isDarkMode;
+
+  // Enable transitions AFTER dark mode has been applied (prevent flicker)
+  requestAnimationFrame(() => {
+    document.body.classList.add("enable-transitions");
+  });
 });
 
 // Toggle dark mode
@@ -142,8 +162,9 @@ darkModeToggle.addEventListener("change", () => {
   const enabled = darkModeToggle.checked;
   document.body.classList.toggle("dark-mode", enabled);
   chrome.storage.local.set({ darkMode: enabled });
-  applyDarkModeStylesToTable();
+  applyDarkModeStylesToTable(); // optional custom logic
 });
+
 
 // Tell background to set JS-Blocker on/off
 jsSettingsToggle.addEventListener("change", () => {
