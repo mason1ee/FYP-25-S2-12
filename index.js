@@ -631,7 +631,7 @@ function startScan() {
 
                       let count = 0;
 
-                      contentThreats.forEach(th => {
+                       headerThreats.forEach(th => {
                         let line;
                         if (typeof th === 'string') {
                           line = th;
@@ -645,7 +645,7 @@ function startScan() {
                         log += '[' + count + '] ' + line + '\n';
                       });
 
-                      headerThreats.forEach(th => {
+                      contentThreats.forEach(th => {
                         let line;
                         if (typeof th === 'string') {
                           line = th;
