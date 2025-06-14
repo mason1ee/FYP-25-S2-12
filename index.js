@@ -130,21 +130,6 @@ chrome.storage.local.get("blocked", ({ blocked }) => {
   blockerStatusText.classList.toggle('inactive', !blocked);
 });
 
-// // Sync dark mode setting from storage
-// chrome.storage.local.get("darkMode", ({ darkMode }) => {
-//   const isDarkMode = Boolean(darkMode); // false if undefined
-//   document.body.classList.toggle("dark-mode", isDarkMode);
-//   darkModeToggle.checked = isDarkMode;
-// });
-
-// // Toggle dark mode
-// darkModeToggle.addEventListener("change", () => {
-//   const enabled = darkModeToggle.checked;
-//   document.body.classList.toggle("dark-mode", enabled);
-//   chrome.storage.local.set({ darkMode: enabled });
-//   applyDarkModeStylesToTable();
-// });
-
 // Sync dark mode setting from storage
 chrome.storage.local.get("darkMode", ({ darkMode }) => {
   const isDarkMode = Boolean(darkMode); // false if undefined
