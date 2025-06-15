@@ -19,39 +19,55 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs && tabs.length > 0) {
         const hostname = new URL(tabs[0].url).hostname;
-        chrome.storage.local.get({ whitelist: [] }, (data) => {
-          let currentList = data.whitelist;
-          if (!currentList.includes(hostname)) {
-            currentList.push(hostname);
-            chrome.storage.local.set({ whitelist: currentList }, () => {
-              alert(`Added ${hostname} to the whitelist.`);
-            });
-          } else {
-            alert(`${hostname} is already whitelisted.`);
+
+        chrome.storage.local.get({ whitelist: [], blacklist: [] }, (data) => {
+          const whitelist = data.whitelist;
+          const blacklist = data.blacklist;
+
+          if (blacklist.includes(hostname)) {
+            alert(`${hostname} is already blacklisted and cannot be added to the whitelist.`);
+            return;
           }
+
+          if (whitelist.includes(hostname)) {
+            alert(`${hostname} is already whitelisted.`);
+            return;
+          }
+
+          whitelist.push(hostname);
+          chrome.storage.local.set({ whitelist: whitelist });
         });
       }
     });
   });
 
+
   blacklistBtn.addEventListener("click", () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs && tabs.length > 0) {
         const hostname = new URL(tabs[0].url).hostname;
-        chrome.storage.local.get({ blacklist: [] }, (data) => {
-          let currentList = data.blacklist;
-          if (!currentList.includes(hostname)) {
-            currentList.push(hostname);
-            chrome.storage.local.set({ blacklist: currentList }, () => {
-              alert(`Added ${hostname} to the blacklist.`);
-            });
-          } else {
-            alert(`${hostname} is already blacklisted.`);
+
+        chrome.storage.local.get({ whitelist: [], blacklist: [] }, (data) => {
+          const whitelist = data.whitelist;
+          const blacklist = data.blacklist;
+
+          if (whitelist.includes(hostname)) {
+            alert(`${hostname} is already whitelisted and cannot be added to the blacklist.`);
+            return;
           }
+
+          if (blacklist.includes(hostname)) {
+            alert(`${hostname} is already blacklisted.`);
+            return;
+          }
+
+          blacklist.push(hostname);
+          chrome.storage.local.set({ blacklist: blacklist });
         });
       }
     });
   });
+
 
     function clearTable(tableBody) {
       while (tableBody.firstChild) {
