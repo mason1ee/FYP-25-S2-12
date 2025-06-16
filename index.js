@@ -390,25 +390,12 @@ function startScan() {
 
                 // original code to show all after scan
 
-                // if (allThreats.length > 0) {
-                //   resultText.textContent = "Website is insecure!";
-                //   resultText.style.color = "red";
-                //   detailedResults.innerHTML = "";
-                //   allThreats.forEach(threat => {
-                //     const li = document.createElement("li");
-                //     li.textContent = typeof threat === "string" ? threat : JSON.stringify(threat);
-                //     detailedResults.appendChild(li);
-                //   });
-                //   vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
-                // }
-
                 if (allThreats.length > 0) {
                   resultText.textContent = "Website is insecure!";
                   resultText.style.color = "red";
                   //detailedResults.innerHTML = ""; // Clear detailed list
                   vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
                 }
-
 
                 else {
                   resultText.textContent = "Website appears secure.";
@@ -420,108 +407,8 @@ function startScan() {
                 chrome.tabs.sendMessage(tabId, { action: "getContentThreats" }, (res) => {
                   const threats = res?.threats || [];
 
-                  const inlineCount = threats.filter(
-                    t =>(typeof t === "string" && t.includes("inline-")) ||
-                        (typeof t === "object" && t.scriptIndex?.startsWith("inline-"))
-                  ).length;
-
-                  const externalScripts = threats.filter(t =>
-                    typeof t === "object" && t.scriptIndex?.includes("external-")
-                  )
-                  const externalCount = externalScripts.length;
-
-                  const inlineHeader = document.createElement("h2");
-                  inlineHeader.textContent = "Website Scripts";
-                  inlineHeader.style.marginTop = "20px";
-                  inlineHeader.style.marginBottom = "10px";
-
-                  const scriptSummary = document.createElement("table");
-                  scriptSummary.style.marginTop = "1em";
-                  scriptSummary.style.borderCollapse = "collapse";
-                  scriptSummary.style.width = "100%";
-
-                  const headerRow = scriptSummary.insertRow();
-                  ["Inline", "External"].forEach((type) => {
-                    const th = document.createElement("th");
-                    th.textContent = type;
-                    th.style.cssText = `
-                      padding: 8px;
-                      text-align: center;
-                      background-color: ${document.body.classList.contains("dark-mode") ? "#444" : "#f0f0f0"};
-                      color: ${document.body.classList.contains("dark-mode") ? "#fff" : "#000"};
-                    `;
-                    headerRow.appendChild(th);
-                  });
-
-
-                  const row = scriptSummary.insertRow();
-                  const inlineCell = row.insertCell();
-                  const externalCell = row.insertCell();
-
-                  inlineCell.textContent = inlineCount;
-                  externalCell.textContent = externalCount;
-
-                  inlineCell.id = "inline-count-cell";
-                  externalCell.id = "external-count-cell";
-
-                  // Remove old summary table and "View External URLs" button if they exist
-                  const oldTable = document.querySelector("#inline-count-cell")?.closest("table");
-                  if (oldTable) oldTable.remove();
-
-                  const oldExternalBtn = document.getElementById("external-urls-btn");
-                  if (oldExternalBtn) oldExternalBtn.remove();
-
-                  // Only add "Website Scripts" <h2> if it doesn't already exist
-                  // let oldInlineHeader = document.querySelector("#website-scripts-header");
-                  // if (!oldInlineHeader) {
-                  //   oldInlineHeader = document.createElement("h2");
-                  //   oldInlineHeader.id = "website-scripts-header";  // add an ID for easy future reference
-                  //   oldInlineHeader.textContent = "Website Scripts";
-                  //   oldInlineHeader.style.marginTop = "20px";
-                  //   oldInlineHeader.style.marginBottom = "10px";
-                  //   detailedResults.parentElement.appendChild(oldInlineHeader);
-                  // }
-                  
-                  //detailedResults.parentElement.appendChild(scriptSummary);
-
                   // Apply dark mode styles immediately after building the table
                   applyDarkModeStylesToTable();
-
-                  // if (externalCount > 0) {
-                  //   // Avoid adding multiple "View External URLs" buttons
-                  //   const existingBtn = document.getElementById("external-urls-btn");
-                  //   if (!existingBtn) {
-                  //     const showExternalBtn = document.createElement("button");
-                  //     showExternalBtn.id = "external-urls-btn";
-                  //     showExternalBtn.textContent = "View External URLs of scripts";
-                      
-                  //     showExternalBtn.style.cssText = `
-                  //       padding: 8px 16px;
-                  //       border-radius: 8px;
-                  //       background: #339DFF;
-                  //       color: white;
-                  //       border: none;
-                  //       font-size: 13px;
-                  //       cursor: pointer;
-                  //       transition: background-color 0.3s ease;
-                  //       margin: 20px 0;
-                  //     `;
-
-                  //     showExternalBtn.onmouseover = () => {
-                  //       showExternalBtn.style.backgroundColor = "#0056b3";
-                  //     };
-
-                  //     showExternalBtn.onmouseout = () => {
-                  //       showExternalBtn.style.backgroundColor = "#007BFF";
-                  //     };
-
-                  //     showExternalBtn.addEventListener("click", () => {
-                  //       const urls = externalScripts.map(s => s.url || s.scriptIndex || "unknown");
-                  //       alert("External Script URLs:\n" + urls.join("\n"));
-                  //     });
-                  //     detailedResults.parentElement.appendChild(showExternalBtn);
-                  //   }
-                  // }
 
                 });
                 
@@ -547,7 +434,7 @@ function startScan() {
                   const formatter = new Intl.DateTimeFormat("en-GB", options);
                   const timestamp = formatter.format(new Date());
 
-                  // Count inline vs external entries
+                  // // Count inline vs external entries
                   const inlineCount = contentThreats.filter(
                     th => (typeof th === "string" && th.includes("inline-")) ||
                           (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
@@ -558,6 +445,7 @@ function startScan() {
                           (typeof th === "string" && th.includes("external-"))
                   ).length;
 
+                  // Output to txt file
                   // chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                   //   if (tabs.length > 0) {
                   //     const currentTab = tabs[0];
@@ -613,25 +501,69 @@ function startScan() {
                   //     URL.revokeObjectURL(url);
                   //   }
                   // });
-
+  
                   chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
                     if (tabs.length > 0) {
                       const currentTab = tabs[0];
 
-                      let log =
-                        '=== Generated by Webbed | Client-Side Script Security Inspector ===\n' +
-                        '--- FYP-25-S2-12 ---\n\n\n' +
-                        `Report for: ${currentTab.url}\n` +
-                        `Scan Timestamp: ${timestamp}\n` +
-                        `JS Blocker Active: ${blocked}\n` +
-                        `Protocol: ${protocol}\n\n` +
-                        `${allThreats.length} vulnerabilities detected\n\n` +
-                        `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found\n\n` +
-                        `Threats:\n`;
+                      // === Constants ===
+                      const headerFontSize = 18;
+                      const subheaderFontSize = 14;
+                      const bodyFontSize = 11;
+                      const margin = 10;
 
+                      // === PDF Setup ===
+                      const { jsPDF } = window.jspdf;
+                      const doc = new jsPDF();
+                      let y = margin;
+
+                      // Load logo
+                      const imgUrl = chrome.runtime.getURL('Assets/logo/Webbed128.png');
+                      const imgData = await getBase64ImageFromUrl(imgUrl);
+                      doc.addImage(imgData, 'PNG', margin, y, 48, 48);
+                      y += 48 + 10;
+
+                      // === Centered Title Header and Subheader ===
+                      const pageWidth = doc.internal.pageSize.getWidth();
+
+                      doc.setFontSize(headerFontSize);
+                      const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
+                      const titleWidth = doc.getTextWidth(title);
+                      doc.text(title, (pageWidth - titleWidth) / 2, y);
+                      y += 10;
+
+                      doc.setFontSize(headerFontSize);
+                      const subheader = "    FYP-25-S2-12    ";
+                      const subheaderWidth = doc.getTextWidth(subheader);
+                      doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
+                      y += 12;
+
+                      // === Summary Info Section (also header-sized) ===
+                      doc.setFontSize(headerFontSize);
+                      const infoLines = [
+                        `Report for: ${currentTab.url}`,
+                        `Scan Timestamp: ${timestamp}`,
+                        `JS Blocker Active: ${blocked}`,
+                        `Protocol: ${protocol}`,
+                        `${allThreats.length} vulnerabilities detected`,
+                        `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found`
+                      ];
+
+                      infoLines.forEach(line => {
+                        const split = doc.splitTextToSize(line, pageWidth - margin * 2);
+                        split.forEach(part => {
+                          doc.text(part, margin, y);
+                          y += 10;
+                        });
+                      });
+
+                      y += 5; // spacing before body content
+
+                      // === Generate threat log ===
+                      let log = `Threats:\n`;
                       let count = 0;
 
-                       headerThreats.forEach(th => {
+                      headerThreats.forEach(th => {
                         let line;
                         if (typeof th === 'string') {
                           line = th;
@@ -642,54 +574,52 @@ function startScan() {
                           line = `[${idx}] ${url}${err}`;
                         }
                         count++;
-                        log += '[' + count + '] ' + line + '\n';
+                        log += `[${count}] ${line}\n`;
                       });
 
                       contentThreats.forEach(th => {
                         let line;
+
                         if (typeof th === 'string') {
                           line = th;
                         } else {
                           const idx = th.scriptIndex || 'unknown';
+
+                          // Skip inline scripts
+                          if (typeof idx === 'string' && idx.startsWith('inline')) {
+                            return;
+                          }
+
                           const url = th.url || 'n/a';
                           const err = th.error ? ' - ' + th.error : '';
                           line = `[${idx}] ${url}${err}`;
                         }
+
                         count++;
-                        log += '[' + count + '] ' + line + '\n';
+                        log += `[${count}] ${line}\n`;
                       });
 
-                      const { jsPDF } = window.jspdf;
-                      const doc = new jsPDF();
+                      if (inlineCount > 0) {
+                        count++;
+                        log += `[${count}] Total ${inlineCount} inline scripts\n`;
+                      }
 
-                      // Load your image as base64 data URL (adjust path if needed)
-                      const imgUrl = chrome.runtime.getURL('Assets/logo/Webbed128.png');
-                      const imgData = await getBase64ImageFromUrl(imgUrl);
+                      // === Main body output ===
+                      doc.setFontSize(bodyFontSize);
 
-                      const margin = 10;
-                      let y = margin;
-
-                      // Add image to PDF (48x48 pixels)
-                      doc.addImage(imgData, 'PNG', margin, y, 48, 48);
-
-                      y += 48 + 10; // move y position below the image with some padding
-
-                      // Split text into lines to avoid cutting off text outside page width
-                      const pageWidth = doc.internal.pageSize.getWidth();
                       const maxLineWidth = pageWidth - margin * 2;
-
                       const lines = doc.splitTextToSize(log, maxLineWidth);
 
-                      lines.forEach((line) => {
+                      lines.forEach(line => {
                         if (y > doc.internal.pageSize.getHeight() - margin) {
                           doc.addPage();
                           y = margin;
+                          doc.setFontSize(bodyFontSize);
                         }
                         doc.text(line, margin, y);
-                        y += 7; // line height
+                        y += 6;
                       });
 
-                      // Save the PDF
                       doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
                     }
                   });
