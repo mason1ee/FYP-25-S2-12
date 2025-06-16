@@ -48,7 +48,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
       const { blacklist, jsBlockStates } = data;
-
       const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : false;
 
       jsSettingsToggle.checked = isBlocked;
@@ -173,39 +172,18 @@ darkModeToggle.addEventListener("change", () => {
   applyDarkModeStylesToTable();
 });
 
-
-// jsSettingsToggle.addEventListener("change", () => {
-//   chrome.runtime.sendMessage({ setBlocked: jsSettingsToggle.checked }, ({ blocked }) => {
-//     blockerStatusText.innerText = blocked ? "ACTIVE" : "INACTIVE";
-//     blockerStatusText.classList.toggle('active', blocked);
-//     blockerStatusText.classList.toggle('inactive', !blocked);
-
-//     // Prompt user to refresh
-//     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-//       const tabId = tabs[0]?.id;
-//       if (!tabId) return;
-//         chrome.scripting.executeScript({
-//         target: { tabId },
-//         func: (state) => {
-//           alert(
-//             `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\n` +
-//             `Please manually refresh the page to apply changes.`
-//           );
-//         },
-//         args: [blocked]
-//       });
-//     });
-//   });
-// });
-
-// Tell background to set JS-Blocker on/off
-
 jsSettingsToggle.addEventListener("change", () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const tab = tabs[0];
-    if (!tab || !tab.url) return;
+  chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, (response) => {
+    if (!response || response.error) {
+      alert(response?.error || "Unable to retrieve tab information.");
+      jsSettingsToggle.checked = false;
+      blockerStatusText.innerText = "INACTIVE";
+      blockerStatusText.classList.remove("active");
+      blockerStatusText.classList.add("inactive");
+      return;
+    }
 
-    const hostname = new URL(tab.url).hostname;
+    const { hostname, tabId } = response;
 
     chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
       const { blacklist, jsBlockStates } = data;
@@ -213,7 +191,6 @@ jsSettingsToggle.addEventListener("change", () => {
       if (!blacklist.includes(hostname)) {
         alert(`${hostname} is not blacklisted.\nJS blocking will not be applied.`);
         jsSettingsToggle.checked = false;
-        jsSettingsToggle.disabled = false;
         blockerStatusText.innerText = "INACTIVE";
         blockerStatusText.classList.remove("active");
         blockerStatusText.classList.add("inactive");
@@ -228,15 +205,15 @@ jsSettingsToggle.addEventListener("change", () => {
         blockerStatusText.classList.toggle("active", shouldBlock);
         blockerStatusText.classList.toggle("inactive", !shouldBlock);
 
-        // ✅ Actively apply/remove the rule via DNR
+        // Apply the rule (you must define this function somewhere)
         updateJSBlockRuleForHost(hostname, shouldBlock);
 
+        // Notify the user to refresh
         chrome.scripting.executeScript({
-          target: { tabId: tab.id },
+          target: { tabId },
           func: (state) => {
             alert(
-              `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\n` +
-              `Please manually refresh the page to apply changes.`
+              `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\nPlease manually refresh the page to apply changes.`
             );
           },
           args: [shouldBlock]
@@ -244,6 +221,51 @@ jsSettingsToggle.addEventListener("change", () => {
       });
     });
   });
+});
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "getActiveTabInfo") {
+    chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
+      if (focusedWindow) {
+        const activeTab = focusedWindow.tabs.find(tab =>
+          tab.active && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+        );
+        if (activeTab) {
+          try {
+            const hostname = new URL(activeTab.url).hostname;
+            sendResponse({ hostname, tabId: activeTab.id });
+            return;
+          } catch {
+            sendResponse({ error: "Failed to parse hostname." });
+            return;
+          }
+        }
+      }
+
+      // fallback if no active tab in focused window
+      chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
+        for (const win of windows) {
+          const activeTab = win.tabs.find(tab =>
+            tab.active && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
+          );
+          if (activeTab) {
+            try {
+              const hostname = new URL(activeTab.url).hostname;
+              sendResponse({ hostname, tabId: activeTab.id });
+              return;
+            } catch {
+              sendResponse({ error: "Failed to parse hostname." });
+              return;
+            }
+          }
+        }
+        // no tab found anywhere, still send response once:
+        sendResponse({ error: "No valid active tab found." });
+      });
+    });
+
+    return true; // important to keep channel open for async sendResponse
+  }
 });
 
 scanButton.addEventListener("click", startScan);
@@ -465,10 +487,12 @@ function startScan() {
                 const allThreats = [...filteredContentThreats, ...headerThreats];
 
                 // original code to show all after scan
+                var isSecure = false;
 
                 if (allThreats.length > 0) {
                   resultText.textContent = "Website is insecure!";
                   resultText.style.color = "red";
+                  isSecure = false;
                   //detailedResults.innerHTML = ""; // Clear detailed list
                   vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
                 }
@@ -476,6 +500,7 @@ function startScan() {
                 else {
                   resultText.textContent = "Website appears secure.";
                   resultText.style.color = "green";
+                  isSecure = true;
                   //detailedResults.innerHTML = "";
                   vulnCountText.textContent = "";
                 }
@@ -491,220 +516,361 @@ function startScan() {
               // Show the download button
               downloadBtn.style.display = "inline-block";
 
-              downloadBtn.onclick = () => {
-                chrome.storage.local.get("blocked", ({ blocked }) => {
-                  // UTC Time
-                  //const timestamp = new Date().toISOString();
+              // downloadBtn.onclick = () => {
+              //   chrome.storage.local.get("blocked", ({ blocked }) => {
+              //     // UTC Time
+              //     //const timestamp = new Date().toISOString();
 
-                  const options = {
-                    timeZone: "Asia/Singapore",
-                    year: "numeric",
-                    month: "2-digit",
-                    day: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    hour12: false,
-                  };
+              //     const options = {
+              //       timeZone: "Asia/Singapore",
+              //       year: "numeric",
+              //       month: "2-digit",
+              //       day: "2-digit",
+              //       hour: "2-digit",
+              //       minute: "2-digit",
+              //       second: "2-digit",
+              //       hour12: false,
+              //     };
 
-                  const formatter = new Intl.DateTimeFormat("en-GB", options);
-                  const timestamp = formatter.format(new Date());
+              //     const formatter = new Intl.DateTimeFormat("en-GB", options);
+              //     const timestamp = formatter.format(new Date());
 
-                  // // Count inline vs external entries
-                  const inlineCount = contentThreats.filter(
-                    th => (typeof th === "string" && th.includes("inline-")) ||
-                          (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
-                  ).length;
+              //     // // Count inline vs external entries
+              //     const inlineCount = contentThreats.filter(
+              //       th => (typeof th === "string" && th.includes("inline-")) ||
+              //             (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
+              //     ).length;
 
-                  const externalCount = contentThreats.filter(
-                    th => (typeof th === "object" && th.scriptIndex?.startsWith("external-")) ||
-                          (typeof th === "string" && th.includes("external-"))
-                  ).length;
+              //     const externalCount = contentThreats.filter(
+              //       th => (typeof th === "object" && th.scriptIndex?.startsWith("external-")) ||
+              //             (typeof th === "string" && th.includes("external-"))
+              //     ).length;
 
-                  // Output to txt file
-                  // chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                  //   if (tabs.length > 0) {
-                  //     const currentTab = tabs[0];
+              //     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+              //       if (tabs.length > 0) {
+              //         const currentTab = tabs[0];
 
-                  //     let log =
-                  //       '=== Generated by Webbed | Client-Side Script Security Inspector ===\n' +
-                  //       '--- FYP-25-S2-12 ---\n\n\n' +
-                  //       `Report for: ${currentTab.url}\n` +
-                  //       `Scan Timestamp: ${timestamp}\n` +
-                  //       `JS Blocker Active: ${blocked}\n` +
-                  //       `Protocol: ${protocol}\n\n` +
-                  //       `${allThreats.length} vulnerabilities detected\n\n` +
-                  //       `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found\n\n` +
-                  //       `Threats:\n`;
+              //         // Constants
+              //         const headerFontSize = 18;
+              //         const bodyFontSize = 11;
+              //         const margin = 10;
+
+              //         // PDF Setup
+              //         const { jsPDF } = window.jspdf;
+              //         const doc = new jsPDF();
+              //         let y = margin;
+
+              //         // Load logo
+              //         const imgUrl = chrome.runtime.getURL('Assets/logo/Webbed128.png');
+              //         const imgData = await getBase64ImageFromUrl(imgUrl);
+              //         doc.addImage(imgData, 'PNG', margin, y, 48, 48);
+              //         y += 48 + 10;
+
+              //         // Centered Title Header and Subheader
+              //         const pageWidth = doc.internal.pageSize.getWidth();
+
+              //         doc.setFontSize(headerFontSize);
+              //         const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
+              //         const titleWidth = doc.getTextWidth(title);
+              //         doc.text(title, (pageWidth - titleWidth) / 2, y);
+              //         y += 10;
+
+              //         doc.setFontSize(headerFontSize);
+              //         const subheader = "    FYP-25-S2-12    ";
+              //         const subheaderWidth = doc.getTextWidth(subheader);
+              //         doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
+              //         y += 12;
+
+              //         // Summary Info Section (also header-sized)
+              //         doc.setFontSize(headerFontSize);
+              //         var message = isSecure ? "appears secure" : "is insecure!";
+              //         var color;
                       
-                  //     let count = 0;
+              //         if (isSecure) {
+              //           color = [0, 128, 0]; // green
+              //         } else {
+              //           color = [255, 0, 0]; // red
+              //         }
 
-                  //     contentThreats.forEach(th => {
-                  //       let line;
-                  //       if (typeof th === 'string') {
-                  //         line = th;
-                  //       } else {
-                  //         const idx = th.scriptIndex || 'unknown';
-                  //         const url = th.url         || 'n/a';
-                  //         const err = th.error       ? ' - ' + th.error : '';
-                  //         line = `[${idx}] ${url}${err}`;
-                  //       }
-                  //       count++;
-                  //       log += '[' + count + '] ' + line + '\n';
-                  //     });
+              //         doc.setTextColor(...color);
+              //         doc.text(`Website ${message}`, margin, y);
+              //         y += 10;
 
-                  //     headerThreats.forEach(th => {
-                  //       let line;
-                  //       if (typeof th === 'string') {
-                  //         line = th;
-                  //       } else {
-                  //         const idx = th.scriptIndex || 'unknown';
-                  //         const url = th.url         || 'n/a';
-                  //         const err = th.error       ? ' - ' + th.error : '';
-                  //         line = `[${idx}] ${url}${err}`;
-                  //       }
-                  //       count++;
-                  //       log += '[' + count + '] ' + line + '\n';
-                  //     });
+              //         doc.setTextColor(0, 0, 0); // reset to black for the rest
 
-                  //     // Now that the log is fully built, trigger download ONCE here:
-                  //     const blob = new Blob([log], { type: 'text/plain;charset=utf-8' });
-                  //     const url  = URL.createObjectURL(blob);
-                  //     const a    = document.createElement('a');
-                  //     a.href     = url;
-                  //     a.download = `[Webbed]scan-log-${timestamp}.txt`;
-                  //     a.click();
-                  //     URL.revokeObjectURL(url);
-                  //   }
-                  // });
-  
-                  chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
-                    if (tabs.length > 0) {
-                      const currentTab = tabs[0];
+              //         var jsActive = blocked ? "JS Blocker Active" : "JS Blocker disabled";
 
-                      // Constants
-                      const headerFontSize = 18;
-                      const bodyFontSize = 11;
-                      const margin = 10;
+              //         const infoLines = [
+              //           `Report for: ${currentTab.url}`,
+              //           `Scan Timestamp: ${timestamp}`,
+              //           `${jsActive}`,
+              //           `Protocol: ${protocol}`,
+              //           `${allThreats.length} vulnerabilities detected`,
+              //           `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`
+              //         ];
 
-                      // PDF Setup
-                      const { jsPDF } = window.jspdf;
-                      const doc = new jsPDF();
-                      let y = margin;
+              //         infoLines.forEach(line => {
+              //           const split = doc.splitTextToSize(line, pageWidth - margin * 2);
+              //           split.forEach(part => {
+              //             doc.text(part, margin, y);
+              //             y += 10;
+              //           });
+              //         });
 
-                      // Load logo
-                      const imgUrl = chrome.runtime.getURL('Assets/logo/Webbed128.png');
-                      const imgData = await getBase64ImageFromUrl(imgUrl);
-                      doc.addImage(imgData, 'PNG', margin, y, 48, 48);
-                      y += 48 + 10;
+              //         y += 5; // spacing before body content
 
-                      // Centered Title Header and Subheader
-                      const pageWidth = doc.internal.pageSize.getWidth();
+              //         // Generate threat log
+              //         let log = `Threats:\n`;
+              //         let count = 0;
 
-                      doc.setFontSize(headerFontSize);
-                      const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
-                      const titleWidth = doc.getTextWidth(title);
-                      doc.text(title, (pageWidth - titleWidth) / 2, y);
-                      y += 10;
+              //         headerThreats.forEach(th => {
+              //           let line;
+              //           if (typeof th === 'string') {
+              //             line = th;
+              //           } else {
+              //             const idx = th.scriptIndex || 'unknown';
+              //             const url = th.url || 'n/a';
+              //             const err = th.error ? ' - ' + th.error : '';
+              //             line = `[${idx}] ${url}${err}`;
+              //           }
+              //           count++;
+              //           log += `[${count}] ${line}\n`;
+              //         });
 
-                      doc.setFontSize(headerFontSize);
-                      const subheader = "    FYP-25-S2-12    ";
-                      const subheaderWidth = doc.getTextWidth(subheader);
-                      doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
-                      y += 12;
+              //         contentThreats.forEach(th => {
+              //           let line;
 
-                      // Summary Info Section (also header-sized)
-                      doc.setFontSize(headerFontSize);
-                      const infoLines = [
-                        `Report for: ${currentTab.url}`,
-                        `Scan Timestamp: ${timestamp}`,
-                        `JS Blocker Active: ${blocked}`,
-                        `Protocol: ${protocol}`,
-                        `${allThreats.length} vulnerabilities detected`,
-                        `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`
-                      ];
+              //           if (typeof th === 'string') {
+              //             line = th;
+              //           } else {
+              //             const idx = th.scriptIndex || 'unknown';
 
-                      infoLines.forEach(line => {
-                        const split = doc.splitTextToSize(line, pageWidth - margin * 2);
-                        split.forEach(part => {
-                          doc.text(part, margin, y);
-                          y += 10;
-                        });
+              //             // Skip inline scripts
+              //             if (typeof idx === 'string' && idx.startsWith('inline')) {
+              //               return;
+              //             }
+
+              //             const url = th.url || 'n/a';
+              //             const err = th.error ? ' - ' + th.error : '';
+              //             line = `[${idx}] ${url}${err}`;
+              //           }
+
+              //           count++;
+              //           log += `[${count}] ${line}\n`;
+              //         });
+
+              //         if (inlineCount > 0) {
+              //           count++;
+              //           log += `[${count}] Total ${inlineCount} inline scripts\n`;
+              //         }
+
+              //         // Main body output
+              //         doc.setFontSize(bodyFontSize);
+
+              //         const maxLineWidth = pageWidth - margin * 2;
+              //         const lines = doc.splitTextToSize(log, maxLineWidth);
+
+              //         lines.forEach(line => {
+              //           if (y > doc.internal.pageSize.getHeight() - margin) {
+              //             doc.addPage();
+              //             y = margin;
+              //             doc.setFontSize(bodyFontSize);
+              //           }
+              //           doc.text(line, margin, y);
+              //           y += 6;
+              //         });
+
+              //         doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
+              //       }
+              //     });
+
+              //     // Helper function to fetch image and convert to base64
+              //     function getBase64ImageFromUrl(imageUrl) {
+              //       return new Promise((resolve, reject) => {
+              //         fetch(imageUrl)
+              //           .then(response => response.blob())
+              //           .then(blob => {
+              //             const reader = new FileReader();
+              //             reader.onloadend = () => resolve(reader.result);
+              //             reader.onerror = reject;
+              //             reader.readAsDataURL(blob);
+              //           })
+              //           .catch(reject);
+              //       });
+              //     }
+              //   });
+              // };
+
+              downloadBtn.onclick = () => {
+                chrome.storage.local.get("jsBlockStates", async ({ jsBlockStates }) => {
+                  chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
+                    if (!response || response.error) {
+                      alert(response?.error || "Unable to retrieve tab information.");
+                      return;
+                    }
+
+                    const { hostname, tabId } = response;
+                    // If full URL needed, adjust accordingly if you store it in response
+
+                    const currentTab = { id: tabId, url: `https://${hostname}` };
+
+                    // Your existing logic, just use currentTab
+                    // ---
+
+                    // Setup timestamp, counts, etc. (your existing code)
+                    const options = {
+                      timeZone: "Asia/Singapore",
+                      year: "numeric",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      hour12: false,
+                    };
+                    const formatter = new Intl.DateTimeFormat("en-GB", options);
+                    const timestamp = formatter.format(new Date());
+
+                    // Count inline vs external entries (assuming contentThreats is defined)
+                    const inlineCount = contentThreats.filter(
+                      th =>
+                        (typeof th === "string" && th.includes("inline-")) ||
+                        (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
+                    ).length;
+
+                    const externalCount = contentThreats.filter(
+                      th =>
+                        (typeof th === "object" && th.scriptIndex?.startsWith("external-")) ||
+                        (typeof th === "string" && th.includes("external-"))
+                    ).length;
+
+                    // Initialize jsPDF
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    let y = 10;
+                    
+                    // Load logo
+                    const imgUrl = chrome.runtime.getURL("Assets/logo/Webbed128.png");
+                    const imgData = await getBase64ImageFromUrl(imgUrl);
+                    doc.addImage(imgData, "PNG", 10, y, 48, 48);
+                    y += 58;
+
+                    // Centered title
+                    const pageWidth = doc.internal.pageSize.getWidth();
+
+                    doc.setFontSize(18);
+                    const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
+                    const titleWidth = doc.getTextWidth(title);
+                    doc.text(title, (pageWidth - titleWidth) / 2, y);
+                    y += 10;
+
+                    doc.setFontSize(18);
+                    const subheader = "    FYP-25-S2-12    ";
+                    const subheaderWidth = doc.getTextWidth(subheader);
+                    doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
+                    y += 12;
+
+                    // Summary info
+                    const protocol = new URL(currentTab.url).protocol;
+
+                    var message = isSecure ? "appears secure" : "is insecure!";
+                    var color = isSecure ? [0, 128, 0] : [255, 0, 0];
+
+                    doc.setTextColor(...color);
+                    doc.text(`Website ${message}`, 10, y);
+                    y += 10;
+
+                    doc.setTextColor(0, 0, 0);
+
+                    var jsActive = (hostname in jsBlockStates ? jsBlockStates[hostname] : false) ? "JS Blocker Active" : "JS Blocker disabled";
+
+                    const infoLines = [
+                      `Report for: ${currentTab.url}`,
+                      `Scan Timestamp: ${timestamp}`,
+                      `${jsActive}`,
+                      `Protocol: ${protocol}`,
+                      `${allThreats.length} vulnerabilities detected`,
+                      `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`,
+                    ];
+
+                    infoLines.forEach((line) => {
+                      const split = doc.splitTextToSize(line, pageWidth - 20);
+                      split.forEach((part) => {
+                        doc.text(part, 10, y);
+                        y += 10;
                       });
+                    });
 
-                      y += 5; // spacing before body content
+                    y += 5;
 
-                      // Generate threat log
-                      let log = `Threats:\n`;
-                      let count = 0;
+                    // Threat logs (headerThreats and contentThreats assumed available)
+                    let log = `Threats:\n`;
+                    let count = 0;
 
-                      headerThreats.forEach(th => {
-                        let line;
-                        if (typeof th === 'string') {
-                          line = th;
-                        } else {
-                          const idx = th.scriptIndex || 'unknown';
-                          const url = th.url || 'n/a';
-                          const err = th.error ? ' - ' + th.error : '';
-                          line = `[${idx}] ${url}${err}`;
+                    headerThreats.forEach((th) => {
+                      let line;
+                      if (typeof th === "string") {
+                        line = th;
+                      } else {
+                        const idx = th.scriptIndex || "unknown";
+                        const url = th.url || "n/a";
+                        const err = th.error ? " - " + th.error : "";
+                        line = `[${idx}] ${url}${err}`;
+                      }
+                      count++;
+                      log += `[${count}] ${line}\n`;
+                    });
+
+                    contentThreats.forEach((th) => {
+                      let line;
+
+                      if (typeof th === "string") {
+                        line = th;
+                      } else {
+                        const idx = th.scriptIndex || "unknown";
+
+                        // Skip inline scripts
+                        if (typeof idx === "string" && idx.startsWith("inline")) {
+                          return;
                         }
-                        count++;
-                        log += `[${count}] ${line}\n`;
-                      });
 
-                      contentThreats.forEach(th => {
-                        let line;
-
-                        if (typeof th === 'string') {
-                          line = th;
-                        } else {
-                          const idx = th.scriptIndex || 'unknown';
-
-                          // Skip inline scripts
-                          if (typeof idx === 'string' && idx.startsWith('inline')) {
-                            return;
-                          }
-
-                          const url = th.url || 'n/a';
-                          const err = th.error ? ' - ' + th.error : '';
-                          line = `[${idx}] ${url}${err}`;
-                        }
-
-                        count++;
-                        log += `[${count}] ${line}\n`;
-                      });
-
-                      if (inlineCount > 0) {
-                        count++;
-                        log += `[${count}] Total ${inlineCount} inline scripts\n`;
+                        const url = th.url || "n/a";
+                        const err = th.error ? " - " + th.error : "";
+                        line = `[${idx}] ${url}${err}`;
                       }
 
-                      // Main body output
-                      doc.setFontSize(bodyFontSize);
+                      count++;
+                      log += `[${count}] ${line}\n`;
+                    });
 
-                      const maxLineWidth = pageWidth - margin * 2;
-                      const lines = doc.splitTextToSize(log, maxLineWidth);
-
-                      lines.forEach(line => {
-                        if (y > doc.internal.pageSize.getHeight() - margin) {
-                          doc.addPage();
-                          y = margin;
-                          doc.setFontSize(bodyFontSize);
-                        }
-                        doc.text(line, margin, y);
-                        y += 6;
-                      });
-
-                      doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
+                    if (inlineCount > 0) {
+                      count++;
+                      log += `[${count}] Total ${inlineCount} inline scripts\n`;
                     }
+
+                    doc.setFontSize(11);
+                    const maxLineWidth = pageWidth - 20;
+                    const lines = doc.splitTextToSize(log, maxLineWidth);
+
+                    lines.forEach((line) => {
+                      if (y > doc.internal.pageSize.getHeight() - 10) {
+                        doc.addPage();
+                        y = 10;
+                        doc.setFontSize(11);
+                      }
+                      doc.text(line, 10, y);
+                      y += 6;
+                    });
+
+                    doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
                   });
 
-                  // Helper function to fetch image and convert to base64
+                  // Helper function (same as your original)
                   function getBase64ImageFromUrl(imageUrl) {
                     return new Promise((resolve, reject) => {
                       fetch(imageUrl)
-                        .then(response => response.blob())
-                        .then(blob => {
+                        .then((response) => response.blob())
+                        .then((blob) => {
                           const reader = new FileReader();
                           reader.onloadend = () => resolve(reader.result);
                           reader.onerror = reject;
@@ -715,6 +881,7 @@ function startScan() {
                   }
                 });
               };
+
 
                 // show whitelist/blacklist button
                 classificationBtn.style.display = "inline-block";
@@ -738,3 +905,15 @@ window.addEventListener("unload", () => {
     console.log("Cleaned up activeScanTabId on unload.");
   });
 });
+
+function checkDomainStatus(domain, callback) {
+  chrome.storage.local.get(['whitelist', 'blacklist'], (data) => {
+    const whitelist = data.whitelist || [];
+    const blacklist = data.blacklist || [];
+
+    const inWhitelist = whitelist.includes(domain);
+    const inBlacklist = blacklist.includes(domain);
+
+    callback({ inWhitelist, inBlacklist });
+  });
+}

@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.storage.local.get(["whitelist", "blacklist"], data => {
     let whitelist = data.whitelist || [];
     let blacklist = data.blacklist || [];
-
+  
     const whitelistBody = document.querySelector("#whitelist tbody");
     const blacklistBody = document.querySelector("#blacklist tbody");
 
@@ -15,57 +15,70 @@ document.addEventListener("DOMContentLoaded", () => {
     const whitelistBtn = document.getElementById("whitelistBtn");
     const blacklistBtn = document.getElementById("blacklistBtn");
 
-    whitelistBtn.addEventListener("click", () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs && tabs.length > 0) {
-          const hostname = new URL(tabs[0].url).hostname;
+    const jsSettingsToggle = document.getElementById("toggle-js-blocker");
+    const blockerStatusText = document.getElementById("blocker-status-text");
 
-          chrome.storage.local.get({ whitelist: [], blacklist: [] }, (data) => {
-            const whitelist = data.whitelist;
-            const blacklist = data.blacklist;
+    console.log(document.getElementById('jsSettingsToggle'));
 
-            if (blacklist.includes(hostname)) {
-              alert(`${hostname} is already blacklisted and cannot be added to the whitelist.`);
-              return;
-            }
+     whitelistBtn.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, (response) => {
+        if (response.error) {
+          alert(response.error);
+          return;
+        }
 
-            if (whitelist.includes(hostname)) {
-              alert(`${hostname} is already whitelisted.`);
-              return;
-            }
+        const hostname = response.hostname;
 
-            whitelist.push(hostname);
-            chrome.storage.local.set({ whitelist: whitelist });
+        chrome.storage.local.get({ whitelist: [], blacklist: [] }, (data) => {
+          const whitelist = data.whitelist;
+          const blacklist = data.blacklist;
+
+          if (blacklist.includes(hostname)) {
+            alert(`${hostname} is already blacklisted and cannot be added to the whitelist.`);
+            return;
+          }
+
+          if (whitelist.includes(hostname)) {
+            alert(`${hostname} is already whitelisted.`);
+            return;
+          }
+
+          whitelist.push(hostname);
+          chrome.storage.local.set({ whitelist }, () => {
             alert(`${hostname} added to Whitelist!`);
           });
-        }
+        });
       });
     });
 
-    blacklistBtn.addEventListener("click", () => {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs && tabs.length > 0) {
-          const hostname = new URL(tabs[0].url).hostname;
+     blacklistBtn.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, (response) => {
+        if (response.error) {
+          alert(response.error);
+          return;
+        }
 
-          chrome.storage.local.get({ whitelist: [], blacklist: [] }, (data) => {
-            const whitelist = data.whitelist;
-            const blacklist = data.blacklist;
+        const hostname = response.hostname;
 
-            if (whitelist.includes(hostname)) {
-              alert(`${hostname} is already whitelisted and cannot be added to the blacklist.`);
-              return;
-            }
+        chrome.storage.local.get({ whitelist: [], blacklist: [] }, (data) => {
+          const whitelist = data.whitelist;
+          const blacklist = data.blacklist;
 
-            if (blacklist.includes(hostname)) {
-              alert(`${hostname} is already blacklisted.`);
-              return;
-            }
+          if (whitelist.includes(hostname)) {
+            alert(`${hostname} is already whitelisted and cannot be added to the blacklist.`);
+            return;
+          }
 
-            blacklist.push(hostname);
-            chrome.storage.local.set({ blacklist: blacklist });
+          if (blacklist.includes(hostname)) {
+            alert(`${hostname} is already blacklisted.`);
+            return;
+          }
+
+          blacklist.push(hostname);
+          chrome.storage.local.set({ blacklist }, () => {
             alert(`${hostname} added to Blacklist!`);
           });
-        }
+        });
       });
     });
 
@@ -108,19 +121,51 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    function removeDomain(domain, listName) {
-      chrome.storage.local.get([listName], (data) => {
+    function removeDomain(domain, listName, jsSettingsToggle, blockerStatusText) {
+      chrome.storage.local.get([listName, "jsBlockStates"], (data) => {
         const list = data[listName] || [];
+        const jsBlockStates = data.jsBlockStates || {};
         const index = list.indexOf(domain);
+
         if (index !== -1) {
           list.splice(index, 1);
-          chrome.storage.local.set({ [listName]: list }, () => {
-            alert(`${domain} removed from ${listName}.`);
-            refreshLists();
+
+          if (domain in jsBlockStates) {
+            delete jsBlockStates[domain];
+          }
+
+        chrome.storage.local.set({ [listName]: list, jsBlockStates }, () => {
+          alert(`${domain} removed from ${listName}.`);
+          refreshLists();
+
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            const tab = tabs[0];
+            if (!tab || !tab.url) return;
+
+            const currentHostname = new URL(tab.url).hostname;
+            if (currentHostname === domain) {
+              if (jsSettingsToggle && blockerStatusText) {
+                jsSettingsToggle.checked = false;
+                jsSettingsToggle.disabled = false;
+                blockerStatusText.innerText = "INACTIVE";
+                blockerStatusText.classList.remove("active");
+                blockerStatusText.classList.add("inactive");
+              }
+
+              updateJSBlockRuleForHost(domain, false);
+
+              chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: () => {
+                  alert("JS Blocker is now INACTIVE.\nPlease manually refresh the page to apply changes.");
+                }
+              });
+            }
           });
-        }
-      });
-    }
+        });
+      }
+  });
+}
 
     function clearTable(tableBody) {
       while (tableBody.firstChild) {
