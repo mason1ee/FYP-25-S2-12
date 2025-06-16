@@ -39,6 +39,32 @@ if (popoutButton && chrome.windows) {
   });
 }
 
+document.addEventListener("DOMContentLoaded", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab || !tab.url) return;
+
+    const hostname = new URL(tab.url).hostname;
+
+    chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
+      const { blacklist, jsBlockStates } = data;
+
+      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : false;
+
+      jsSettingsToggle.checked = isBlocked;
+
+      blockerStatusText.innerText = isBlocked ? "ACTIVE" : "INACTIVE";
+      blockerStatusText.classList.toggle("active", isBlocked);
+      blockerStatusText.classList.toggle("inactive", !isBlocked);
+
+      // Show your classification button on load
+      if (classificationBtn) {
+        classificationBtn.style.display = "inline-block";
+      }
+    });
+  });
+});
+
 // Tab navigation
 scanTabBtn.addEventListener("click", () => {
   scanTab.style.display = "block";
@@ -120,30 +146,6 @@ function resetScanButton() {
   scanButton.style.opacity = 1;
   scanButton.style.cursor = "pointer";
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const tab = tabs[0];
-    if (!tab || !tab.url) return;
-
-    const hostname = new URL(tab.url).hostname;
-
-    chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
-      const { blacklist, jsBlockStates } = data;
-
-      const isBlacklisted = blacklist.includes(hostname);
-      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : false;
-
-      // Update toggle and status
-      //jsSettingsToggle.disabled = isBlacklisted;
-      jsSettingsToggle.checked = isBlocked;
-
-      blockerStatusText.innerText = isBlocked ? "ACTIVE" : "INACTIVE";
-      blockerStatusText.classList.toggle("active", isBlocked);
-      blockerStatusText.classList.toggle("inactive", !isBlocked);
-    });
-  });
-});
 
 chrome.storage.local.get("darkMode", ({ darkMode }) => {
   const isDarkMode = Boolean(darkMode);
@@ -379,7 +381,7 @@ function startScan() {
       statusText.textContent = "";
       console.error("Cannot scan this page. Restricted or unsupported URL.");
       //"No valid tab ID found.");
-      classificationBtn.style.display = "none";
+      //classificationBtn.style.display = "none";
       resetScanButton();
       progressContainer.style.display="none";
       return;

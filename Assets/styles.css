@@ -265,6 +265,31 @@
     text-align: center;
   }
 
+  .remove-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+  }
+
+  .remove-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: red;
+    display: block; /* remove extra space below SVG */
+  }
+
+  .remove-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 77, 77, 0.6);
+    border-radius: 2px;
+  }
+
   #whitelist-sort,
   #blacklist-sort {
     background-color: #007BFF;
