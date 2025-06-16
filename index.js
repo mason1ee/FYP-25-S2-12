@@ -11,8 +11,6 @@ const downloadBtn = document.getElementById("download-log");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
 const classificationBtn = document.getElementById("classification-buttons");
-const whitelistBtn = document.getElementById("whitelist-btn");
-const blacklistBtn = document.getElementById("blacklist-btn");
 
 const scanTabBtn = document.getElementById("scan-tab-btn");
 const settingsTabBtn = document.getElementById("settings-tab-btn");
@@ -29,6 +27,8 @@ const blacklistTab = document.getElementById("blacklist-tab");
 const jsSettingsToggle = document.getElementById("toggle-js-blocker");
 const blockerStatusText = document.getElementById("blocker-status-text");
 
+import { updateJSBlockRuleForHost } from './lists.js';
+ 
 scanContainer.style.display = "none";
 
 if (popoutButton && chrome.windows) {
@@ -121,12 +121,28 @@ function resetScanButton() {
   scanButton.style.cursor = "pointer";
 }
 
-// On popup open, mirror the stored state
-chrome.storage.local.get("blocked", ({ blocked }) => {
-  jsSettingsToggle.checked = Boolean(blocked);
-  blockerStatusText.innerText = blocked ? "ACTIVE" : "INACTIVE";
-  blockerStatusText.classList.toggle('active', blocked);
-  blockerStatusText.classList.toggle('inactive', !blocked);
+document.addEventListener("DOMContentLoaded", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab || !tab.url) return;
+
+    const hostname = new URL(tab.url).hostname;
+
+    chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
+      const { blacklist, jsBlockStates } = data;
+
+      const isBlacklisted = blacklist.includes(hostname);
+      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : false;
+
+      // Update toggle and status
+      //jsSettingsToggle.disabled = isBlacklisted;
+      jsSettingsToggle.checked = isBlocked;
+
+      blockerStatusText.innerText = isBlocked ? "ACTIVE" : "INACTIVE";
+      blockerStatusText.classList.toggle("active", isBlocked);
+      blockerStatusText.classList.toggle("inactive", !isBlocked);
+    });
+  });
 });
 
 chrome.storage.local.get("darkMode", ({ darkMode }) => {
@@ -155,26 +171,74 @@ darkModeToggle.addEventListener("change", () => {
   applyDarkModeStylesToTable();
 });
 
-// Tell background to set JS-Blocker on/off
-jsSettingsToggle.addEventListener("change", () => {
-  chrome.runtime.sendMessage({ setBlocked: jsSettingsToggle.checked }, ({ blocked }) => {
-    blockerStatusText.innerText = blocked ? "ACTIVE" : "INACTIVE";
-    blockerStatusText.classList.toggle('active', blocked);
-    blockerStatusText.classList.toggle('inactive', !blocked);
 
-    // Prompt user to refresh
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const tabId = tabs[0]?.id;
-      if (!tabId) return;
+// jsSettingsToggle.addEventListener("change", () => {
+//   chrome.runtime.sendMessage({ setBlocked: jsSettingsToggle.checked }, ({ blocked }) => {
+//     blockerStatusText.innerText = blocked ? "ACTIVE" : "INACTIVE";
+//     blockerStatusText.classList.toggle('active', blocked);
+//     blockerStatusText.classList.toggle('inactive', !blocked);
+
+//     // Prompt user to refresh
+//     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+//       const tabId = tabs[0]?.id;
+//       if (!tabId) return;
+//         chrome.scripting.executeScript({
+//         target: { tabId },
+//         func: (state) => {
+//           alert(
+//             `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\n` +
+//             `Please manually refresh the page to apply changes.`
+//           );
+//         },
+//         args: [blocked]
+//       });
+//     });
+//   });
+// });
+
+// Tell background to set JS-Blocker on/off
+
+jsSettingsToggle.addEventListener("change", () => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab || !tab.url) return;
+
+    const hostname = new URL(tab.url).hostname;
+
+    chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
+      const { blacklist, jsBlockStates } = data;
+
+      if (!blacklist.includes(hostname)) {
+        alert(`${hostname} is not blacklisted.\nJS blocking will not be applied.`);
+        jsSettingsToggle.checked = false;
+        jsSettingsToggle.disabled = false;
+        blockerStatusText.innerText = "INACTIVE";
+        blockerStatusText.classList.remove("active");
+        blockerStatusText.classList.add("inactive");
+        return;
+      }
+
+      const shouldBlock = jsSettingsToggle.checked;
+      jsBlockStates[hostname] = shouldBlock;
+
+      chrome.storage.local.set({ jsBlockStates }, () => {
+        blockerStatusText.innerText = shouldBlock ? "ACTIVE" : "INACTIVE";
+        blockerStatusText.classList.toggle("active", shouldBlock);
+        blockerStatusText.classList.toggle("inactive", !shouldBlock);
+
+        // ✅ Actively apply/remove the rule via DNR
+        updateJSBlockRuleForHost(hostname, shouldBlock);
+
         chrome.scripting.executeScript({
-        target: { tabId },
-        func: (state) => {
-          alert(
-            `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\n` +
-            `Please manually refresh the page to apply changes.`
-          );
-        },
-        args: [blocked]
+          target: { tabId: tab.id },
+          func: (state) => {
+            alert(
+              `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\n` +
+              `Please manually refresh the page to apply changes.`
+            );
+          },
+          args: [shouldBlock]
+        });
       });
     });
   });

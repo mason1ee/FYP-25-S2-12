@@ -36,11 +36,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           whitelist.push(hostname);
           chrome.storage.local.set({ whitelist: whitelist });
+          alert(`${hostname} added to Whitelist!`);
         });
       }
     });
   });
-
 
   blacklistBtn.addEventListener("click", () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -63,11 +63,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           blacklist.push(hostname);
           chrome.storage.local.set({ blacklist: blacklist });
+          alert(`${hostname} added to Blacklist!`);
         });
       }
     });
   });
-
 
     function clearTable(tableBody) {
       while (tableBody.firstChild) {
@@ -157,7 +157,73 @@ document.getElementById("reset-lists").addEventListener("click", () => {
       blacklist: ["evil.com", "maliciousdomain.net"]
     }, () => {
       alert("All website lists have been reset.");
-      location.reload(); // Reload popup to reflect changes
+      chrome.runtime.sendMessage({ action: "updateBlacklistRules" }); // Trigger update
+      location.reload();
     });
   }
 });
+
+document.getElementById("reset-lists").addEventListener("click", () => {
+  if (confirm("Are you sure you want to reset all lists?")) {
+    const defaultWhitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
+    const defaultBlacklist = ["evil.com", "maliciousdomain.net"];
+
+    // Clear jsBlockStates and set new whitelist + blacklist
+    chrome.storage.local.set({
+      whitelist: defaultWhitelist,
+      blacklist: defaultBlacklist,
+      jsBlockStates: {}  // ✅ Reset JS block states
+    }, () => {
+      // ✅ Remove all blocking rules in DNR
+      chrome.declarativeNetRequest.getDynamicRules((rules) => {
+        const ruleIds = rules.map(rule => rule.id);
+        chrome.declarativeNetRequest.updateDynamicRules({
+          removeRuleIds: ruleIds
+        }, () => {
+          if (chrome.runtime.lastError) {
+            console.error("Error removing rules:", chrome.runtime.lastError);
+          } else {
+            console.log("All blocking rules removed.");
+          }
+
+          alert("All website lists and JS blocking rules have been reset.");
+          location.reload();
+        });
+      });
+    });
+  }
+});
+
+export function updateJSBlockRuleForHost(hostname, shouldBlock) {
+  const ruleId = Math.abs(hashCode(hostname)); // Unique rule ID for each hostname
+
+  if (shouldBlock) {
+    chrome.declarativeNetRequest.updateDynamicRules({
+      addRules: [{
+        id: ruleId,
+        priority: 1,
+        action: { type: "block" },
+        condition: {
+          urlFilter: `||${hostname}^`,
+          resourceTypes: ["script"]
+        }
+      }],
+      removeRuleIds: [] // Don't remove anything else
+    });
+  } else {
+    chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds: [ruleId]
+    });
+  }
+  console.log(`Rule for ${hostname} ${shouldBlock ? 'added' : 'removed'}`);
+}
+
+// Simple hash function to create a numeric rule ID
+function hashCode(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
