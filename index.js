@@ -91,8 +91,8 @@ if (popoutButton) {
           chrome.windows.create({
             url: chrome.runtime.getURL("index.html"),
             type: "popup",
-            width: 400,
-            height: 600
+            width: 350,
+            height: 550
           }, () =>{
             window.close();
           });
@@ -273,7 +273,6 @@ function applyDarkModeStylesToTable() {
   }
 }
 
-
 function startScan() {
   if (isScanning) return;
   isScanning = true;
@@ -367,6 +366,17 @@ function startScan() {
               statusText.textContent = "Scan Completed!";  // Show completed status
 
               const contentThreats = message.threats || [];
+
+              const hasInline = contentThreats.some(threat => threat.type === "inline");
+
+              // Get all non-inline threats
+              const filteredContentThreats = contentThreats.filter(threat => threat.type !== "inline");
+
+              // If inline exists, add a placeholder threat object (or however you'd like to represent it)
+              if (hasInline) {
+                filteredContentThreats.push({ type: "inline", description: "Inline threat detected" });
+              }
+
               const protocol = message.protocol || "";
 
               chrome.runtime.sendMessage({ action: "getSecurityHeaders" }, (res) => {
@@ -386,7 +396,7 @@ function startScan() {
                   headerThreats.push("Page is not served over HTTPS");
                 }
 
-                const allThreats = [...contentThreats, ...headerThreats];
+                const allThreats = [...filteredContentThreats, ...headerThreats];
 
                 // original code to show all after scan
 
@@ -506,13 +516,12 @@ function startScan() {
                     if (tabs.length > 0) {
                       const currentTab = tabs[0];
 
-                      // === Constants ===
+                      // Constants
                       const headerFontSize = 18;
-                      const subheaderFontSize = 14;
                       const bodyFontSize = 11;
                       const margin = 10;
 
-                      // === PDF Setup ===
+                      // PDF Setup
                       const { jsPDF } = window.jspdf;
                       const doc = new jsPDF();
                       let y = margin;
@@ -523,7 +532,7 @@ function startScan() {
                       doc.addImage(imgData, 'PNG', margin, y, 48, 48);
                       y += 48 + 10;
 
-                      // === Centered Title Header and Subheader ===
+                      // Centered Title Header and Subheader
                       const pageWidth = doc.internal.pageSize.getWidth();
 
                       doc.setFontSize(headerFontSize);
@@ -538,7 +547,7 @@ function startScan() {
                       doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
                       y += 12;
 
-                      // === Summary Info Section (also header-sized) ===
+                      // Summary Info Section (also header-sized)
                       doc.setFontSize(headerFontSize);
                       const infoLines = [
                         `Report for: ${currentTab.url}`,
@@ -546,7 +555,7 @@ function startScan() {
                         `JS Blocker Active: ${blocked}`,
                         `Protocol: ${protocol}`,
                         `${allThreats.length} vulnerabilities detected`,
-                        `Script Summary: ${inlineCount} inline, ${externalCount} external scripts found`
+                        `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`
                       ];
 
                       infoLines.forEach(line => {
@@ -559,7 +568,7 @@ function startScan() {
 
                       y += 5; // spacing before body content
 
-                      // === Generate threat log ===
+                      // Generate threat log
                       let log = `Threats:\n`;
                       let count = 0;
 
@@ -604,7 +613,7 @@ function startScan() {
                         log += `[${count}] Total ${inlineCount} inline scripts\n`;
                       }
 
-                      // === Main body output ===
+                      // Main body output
                       doc.setFontSize(bodyFontSize);
 
                       const maxLineWidth = pageWidth - margin * 2;
@@ -638,12 +647,10 @@ function startScan() {
                         .catch(reject);
                     });
                   }
-
-
                 });
               };
 
-                //show whitelist/blacklist button
+                // show whitelist/blacklist button
                 classificationBtn.style.display = "inline-block";
               
                 resetScanButton();
