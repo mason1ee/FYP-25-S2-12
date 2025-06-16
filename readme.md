@@ -11,8 +11,12 @@
 - _metadata
     - For JS Blocker.
 
-- acorn.min.js -
-External library used for traversing JavaScript source code. This is necessary in order to perform static code analysis for JavaScript.
+- libs
+    - acorn.min.js -
+    External library used for traversing JavaScript source code.
+
+    - jspdf.umd.min.js
+    External library used for generation of PDF report.
 
 - background.js -
 Initializes default whitelist and blacklist on installation via chrome.storage.local, etc.
@@ -31,6 +35,9 @@ Displays and filters the whitelist and blacklist in a table format, etc.
 
 - manifest.json -
 To declare the name, version, permissions needed for the extension and the various script that we're using.
+
+- preload-darkmode.js
+JS script to preload darkmode if extension was set to dark mode previously.
 
 - rules.json -
 Rules for JS Blocker.
