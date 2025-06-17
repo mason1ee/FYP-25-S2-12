@@ -234,7 +234,7 @@ var unsafeJSUsage = (code, label) => {
   // Script analysis
   scripts.forEach((script, index) => {
     const isInline = !script.src;
-    const label = isInline ? `inline script-${index+1}` : `external script-${index+1}`;
+    const label = isInline ? `inline-${index+1}` : `external-${index+1}`;
 
     if (isInline) {
       processCode(script.textContent, label);
