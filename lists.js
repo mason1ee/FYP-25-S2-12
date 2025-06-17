@@ -15,8 +15,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const whitelistBtn = document.getElementById("whitelistBtn");
     const blacklistBtn = document.getElementById("blacklistBtn");
 
-    const jsSettingsToggle = document.getElementById("toggle-js-blocker");
-    const blockerStatusText = document.getElementById("blocker-status-text");
+    // const jsSettingsToggle = document.getElementById("toggle-js-blocker");
+    // const blockerStatusText = document.getElementById("blocker-status-text");
 
     console.log(document.getElementById('jsSettingsToggle'));
 
