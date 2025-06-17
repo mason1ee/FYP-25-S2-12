@@ -209,6 +209,11 @@
     opacity: 0.7;
   }
 
+  #current-domain {
+    margin-top: 10px; 
+    font-weight: bold;
+  }
+
   .spinner {
     border: 3px solid #f3f3f3;
     border-top: 3px solid white;
