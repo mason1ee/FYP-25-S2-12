@@ -48,14 +48,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
       const { blacklist, jsBlockStates } = data;
-      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : false;
-
-      jsSettingsToggle.checked = isBlocked;
-
+      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
+      
       blockerStatusText.innerText = isBlocked ? "ACTIVE" : "INACTIVE";
       blockerStatusText.classList.toggle("active", isBlocked);
       blockerStatusText.classList.toggle("inactive", !isBlocked);
 
+      jsSettingsToggle.checked = isBlocked;
+      
       // Show your classification button on load
       if (classificationBtn) {
         classificationBtn.style.display = "inline-block";
