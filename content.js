@@ -62,7 +62,7 @@ function analyzePage() {
   forms.forEach((form, i) => {
     var action = form.getAttribute("action") || "";
     if (action && !action.startsWith("https://")) {
-      threats.push(`Form ${i} sends data insecurely over HTTP`);
+      threats.push(`Form ${i+1} sends data insecurely over HTTP`);
     }
 
     var hiddenInputs = Array.from(form.querySelectorAll('input[type="hidden"]'));
@@ -70,15 +70,39 @@ function analyzePage() {
       csrfTokenPattern.test(input.name) || csrfTokenPattern.test(input.id)
     );
     if (!hasCSRFToken) {
-      threats.push(`Form ${i} does not contain a hidden CSRF token`);
+      threats.push(`Form ${i+1} does not contain a hidden CSRF token`);
     }
   });
 
-  var unsafeJSUsage = (code, label) => {
-    if (/\.value/.test(code)) {
-      threats.push(`Unsafe JavaScript usage of inputs in ${label}`);
+  // Patterns that indicate potentially unsafe usage of user input (e.g., from .value)
+const dangerousPatterns = [
+  {
+    regex: /\.value\s*[\+\=]/,
+    message: "Input `.value` is being concatenated or assigned to a variable (XSS risk if inserted into the DOM)."
+  },
+  {
+    regex: /innerHTML\s*=\s*.*\.value/,
+    message: "Assigning `.value` directly to `innerHTML` can allow attackers to inject malicious HTML or JavaScript (XSS)."
+  },
+  {
+    regex: /eval\s*\(.*\.value.*\)/,
+    message: "`eval()` is being used with `.value` — this enables attackers to execute arbitrary JavaScript code, critical security risk."
+  },
+  {
+    regex: /document\.write\s*\(.*\.value.*\)/,
+    message: "`document.write()` with user input can overwrite the page or insert harmful scripts (XSS risk)."
+  }
+];
+
+var unsafeJSUsage = (code, label) => {
+  if (!/\.value/.test(code)) return;
+
+  dangerousPatterns.forEach(({ regex, message }) => {
+    if (regex.test(code)) {
+      threats.push(`Unsafe JavaScript detected in ${label}: ${message}`);
     }
-  };
+  });
+};
 
   var processCode = (code, label) => {
     try {
@@ -210,7 +234,7 @@ function analyzePage() {
   // Script analysis
   scripts.forEach((script, index) => {
     const isInline = !script.src;
-    const label = isInline ? `inline-${index}` : `external-${index}`;
+    const label = isInline ? `inline script-${index+1}` : `external script-${index+1}`;
 
     if (isInline) {
       processCode(script.textContent, label);
@@ -235,9 +259,10 @@ function analyzePage() {
             processCode(code, label);
             //Check against trusted CDNs
             if (isSuspiciousDomain(src)) {
-              threats.push(`Suspicious JavaScript source detected: ${src}`);
+              threats.push({ scriptIndex: label, url: `Suspicious JavaScript detected : ${src}` });
+            } else {
+              threats.push({ scriptIndex: label, url: src });
             }
-            threats.push({ scriptIndex: label, url: src });
           }
           sendIfDone();
         })

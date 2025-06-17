@@ -609,11 +609,19 @@ function startScan() {
                         (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
                     ).length;
 
-                    const externalCount = contentThreats.filter(
-                      th =>
-                        (typeof th === "object" && th.scriptIndex?.startsWith("external-")) ||
-                        (typeof th === "string" && th.includes("external-"))
-                    ).length;
+                    const externalScriptsSet = new Set();
+
+                    //Count external script
+                    contentThreats.forEach(th => {
+                      if (typeof th === "object" && th.scriptIndex?.startsWith("external-")) {
+                        externalScriptsSet.add(th.scriptIndex);
+                      } else if (typeof th === "string") {
+                        const match = th.match(/external-\d+/);
+                        if (match) externalScriptsSet.add(match[0]);
+                      }
+                    });
+
+                    const externalCount = externalScriptsSet.size;
 
                     // Initialize jsPDF
                     const { jsPDF } = window.jspdf;
