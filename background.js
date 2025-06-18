@@ -7,7 +7,7 @@ function updateDynamicBlacklistRules() {
     if (!Array.isArray(blacklist)) return;
 
     let rules = [];
-    let ruleId = 1000; // Make sure IDs don't conflict with your static ruleset
+    let ruleId = 1000; // Make sure IDs don't conflict with static ruleset
 
     for (const domain of blacklist) {
       const urlFilter = `*://${domain}/*`;
@@ -195,7 +195,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return false;
 });
 
-
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local") {
     if (changes.blacklist) {
@@ -236,7 +235,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
       try {
         const hostname = new URL(tab.url).hostname;
-        sendResponse({ hostname, tabId: tab.id });
+        sendResponse({ hostname, tabId: tab.id, url: tab.url });
       } catch {
         sendResponse({ error: "Failed to parse hostname." });
       }

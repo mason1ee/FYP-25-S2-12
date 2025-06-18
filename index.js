@@ -41,7 +41,17 @@ function updateUIBasedOnActiveTab() {
   chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
     const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
 
-    if (!activeTab || !activeTab.url) return;
+    if (!activeTab || !activeTab.url) {
+      // Set status to "Not Applicable"
+      blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
+      blockerStatusText.classList.remove("active", "inactive");
+      
+      if (classificationBtn) {
+        classificationBtn.style.display = "none";
+      }
+
+      return;
+    }
 
     const hostname = new URL(activeTab.url).hostname;
 
@@ -52,6 +62,7 @@ function updateUIBasedOnActiveTab() {
       blockerStatusText.innerText = isBlocked ? "ACTIVE" : "INACTIVE";
       blockerStatusText.classList.toggle("active", isBlocked);
       blockerStatusText.classList.toggle("inactive", !isBlocked);
+      blockerStatusText.classList.remove("na");
 
       // Optionally toggle the checkbox
       // jsSettingsToggle.checked = isBlocked;
@@ -63,21 +74,57 @@ function updateUIBasedOnActiveTab() {
   });
 }
 
-// Initial load
-document.addEventListener("DOMContentLoaded", () => {
-  updateUIBasedOnActiveTab();
-
-  // Listen for tab switches
+// For dynamic updates of JS Blocker Status
+function initializeListeners() {
   chrome.tabs.onActivated.addListener(() => {
     updateUIBasedOnActiveTab();
   });
 
-  // Listen for tab updates (like navigation or reload)
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === "complete" && tab.active) {
+    if (tab.active && changeInfo.url) {
       updateUIBasedOnActiveTab();
     }
   });
+
+  chrome.windows.onFocusChanged.addListener(() => {
+    updateUIBasedOnActiveTab();
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
+      updateUIBasedOnActiveTab();
+    }
+  });
+}
+
+function updateCurrentDomain() {
+  chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
+    const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
+    const domainText = document.getElementById("current-domain");
+
+    if (activeTab && activeTab.url) {
+      try {
+        scanButton.style.display = "inline-block";
+        const hostname = new URL(activeTab.url).hostname;
+        domainText.textContent = `Current Domain: ${hostname}`;
+      } catch (e) {
+        domainText.textContent = "Invalid URL.";
+      }
+    } else {
+      document.getElementById("scan-instruction").style.display = "none";
+      scanButton.style.display = "none";
+      domainText.textContent = "No active website detected.";
+    }
+  });
+}
+
+// Initial load
+document.addEventListener("DOMContentLoaded", () => {
+  initializeListeners();
+
+  updateCurrentDomain();
+  // Optional: keep it updated in case tab changes while popup is open
+  setInterval(updateCurrentDomain, 1000);
 });
 
 scanTabBtn.addEventListener("click", () => {
@@ -164,7 +211,7 @@ if (popoutButton) {
   });
 }
 
-// Hide popout button if we're already in a popout window
+// Hide popout button if already in a popout window
 chrome.windows.getCurrent({ populate: false }, (window) => {
   if (window && window.type === "popup") {
     // Small popups opened by the extension will have height less than typical popouts
@@ -175,36 +222,10 @@ chrome.windows.getCurrent({ populate: false }, (window) => {
   }
 });
 
-function updateCurrentDomain() {
-  chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-    const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
-    const domainText = document.getElementById("current-domain");
-
-    if (activeTab && activeTab.url) {
-      try {
-        const hostname = new URL(activeTab.url).hostname;
-        domainText.textContent = `Current Domain: ${hostname}`;
-      } catch (e) {
-        domainText.textContent = "Invalid URL.";
-      }
-    } else {
-      domainText.textContent = "No active website detected.";
-    }
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  updateCurrentDomain();
-
-  // Optional: keep it updated in case tab changes while popup is open
-  setInterval(updateCurrentDomain, 1000);
-});
-
-
 function resetScanButton() {
   isScanning = false;
   scanButton.disabled = false;
-  scanButton.innerHTML = "Scan";
+  scanButton.innerHTML = " Start Scan";
   scanButton.style.opacity = 1;
   scanButton.style.cursor = "pointer";
 }
@@ -267,7 +288,7 @@ darkModeToggle.addEventListener("change", () => {
 //         blockerStatusText.classList.toggle("active", shouldBlock);
 //         blockerStatusText.classList.toggle("inactive", !shouldBlock);
 
-//         // Apply the rule (you must define this function somewhere)
+//         // Apply the rule (must define this function somewhere)
 //         updateJSBlockRuleForHost(hostname, shouldBlock);
 
 //         // Notify the user to refresh
@@ -285,56 +306,17 @@ darkModeToggle.addEventListener("change", () => {
 //   });
 // });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "getActiveTabInfo") {
-    chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-      if (focusedWindow) {
-        const activeTab = focusedWindow.tabs.find(tab =>
-          tab.active && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
-        );
-        if (activeTab) {
-          try {
-            const hostname = new URL(activeTab.url).hostname;
-            sendResponse({ hostname, tabId: activeTab.id });
-            return;
-          } catch {
-            sendResponse({ error: "Failed to parse hostname." });
-            return;
-          }
-        }
-      }
-
-      // fallback if no active tab in focused window
-      chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
-        for (const win of windows) {
-          const activeTab = win.tabs.find(tab =>
-            tab.active && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
-          );
-          if (activeTab) {
-            try {
-              const hostname = new URL(activeTab.url).hostname;
-              sendResponse({ hostname, tabId: activeTab.id });
-              return;
-            } catch {
-              sendResponse({ error: "Failed to parse hostname." });
-              return;
-            }
-          }
-        }
-        // no tab found anywhere, still send response once:
-        sendResponse({ error: "No valid active tab found." });
-      });
-    });
-
-    return true; // to keep channel open for async sendResponse
-  }
-});
-
 scanButton.addEventListener("click", startScan);
 
 let interval = null;
 let onScanResult = null;
 let isScanning = false;
+
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  // When user switches tab, reset scan container
+  resetScanContainer();
+});
+
 
 function getTabIdForScanning(callback) {
   chrome.storage.local.get("activeScanTabId", (data) => {
@@ -420,6 +402,40 @@ function applyDarkModeStylesToTable() {
       td.style.border = "1px solid " + (isDark ? "#666" : "#ccc");
     });
   }
+}
+
+function resetScanContainer() {
+  // Hide scan container UI
+  scanContainer.style.display = "none";
+
+  // Reset progress bar and texts
+  progressBar.style.width = "0%";
+  resultText.textContent = "";
+  vulnCountText.textContent = "";
+  statusText.textContent = "";
+  
+  // Enable scan button and reset text
+  scanButton.disabled = false;
+  scanButton.innerHTML = "Start Scan";
+  scanButton.style.opacity = 1;
+  scanButton.style.cursor = "pointer";
+
+  // Hide download and classification buttons if visible
+  downloadBtn.style.display = "none";
+  classificationBtn.style.display = "none";
+
+  // Clear any intervals and listeners
+  if (interval) clearInterval(interval);
+  if (onScanResult) {
+    chrome.runtime.onMessage.removeListener(onScanResult);
+    onScanResult = null;
+  }
+
+  // Show scan instructions again
+  document.getElementById("scan-instruction").style.display = "block";
+
+  // Reset scanning flag
+  isScanning = false;
 }
 
 function startScan() {
@@ -521,7 +537,7 @@ function startScan() {
               // Get all non-inline threats
               const filteredContentThreats = contentThreats.filter(threat => threat.type !== "inline");
 
-              // If inline exists, add a placeholder threat object (or however you'd like to represent it)
+              // If inline exists, add a placeholder threat object
               if (hasInline) {
                 filteredContentThreats.push({ type: "inline", description: "Inline threat detected" });
               }
@@ -585,9 +601,9 @@ function startScan() {
                       return;
                     }
 
-                    const { hostname, tabId } = response;
+                    const { hostname, tabId, url } = response;
 
-                    const currentTab = { id: tabId, url: `https://${hostname}` };
+                    const currentTab = { id: tabId, url };
 
                     const options = {
                       timeZone: "Asia/Singapore",
@@ -661,7 +677,7 @@ function startScan() {
 
                     doc.setTextColor(0, 0, 0);
 
-                    var jsActive = (hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname)) ?"JS Blocker Active" : "JS Blocker disabled";
+                    var jsActive = (hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname)) ? "JS Blocker Active" : "JS Blocker disabled";
 
                     const infoLines = [
                       `Report for: ${currentTab.url}`,

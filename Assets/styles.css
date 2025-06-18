@@ -362,6 +362,10 @@
   #blocker-status-text.inactive{
     color : red;
   }
+  #blocker-status-text.na{
+    color : gray;
+    font-weight: bold;
+  }
 
 /* Start of Reset Lists Button*/
 

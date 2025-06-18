@@ -15,9 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const whitelistBtn = document.getElementById("whitelistBtn");
     const blacklistBtn = document.getElementById("blacklistBtn");
 
-    // const jsSettingsToggle = document.getElementById("toggle-js-blocker");
-    // const blockerStatusText = document.getElementById("blocker-status-text");
-
     console.log(document.getElementById('jsSettingsToggle'));
 
      whitelistBtn.addEventListener("click", () => {
@@ -147,9 +144,10 @@ document.addEventListener("DOMContentLoaded", () => {
               if (jsSettingsToggle && blockerStatusText) {
                 jsSettingsToggle.checked = false;
                 jsSettingsToggle.disabled = false;
-                blockerStatusText.innerText = "INACTIVE";
+               
                 blockerStatusText.classList.remove("active");
-                blockerStatusText.classList.add("inactive");
+                //blockerStatusText.classList.add("inactive");
+                blockerStatusText.classList.toggle("inactive", blockerStatusText.innerText = "INACTIVE")
               }
 
               updateJSBlockRuleForHost(domain, false);
