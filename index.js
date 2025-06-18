@@ -558,7 +558,6 @@ function startScan() {
                   "Missing X-Frame-Options": 2,
                   "Page is not served over HTTPS": 10,
                   "inline": 3,
-                  // You can add more custom threats here
                 };
 
                 if (!headers["content-security-policy"])
@@ -619,7 +618,7 @@ function startScan() {
                   vulnCountText.textContent = "";
                 }
 
-                // Continue with your existing logic for displaying detailed threats, download button etc.
+                // Continue with existing logic for displaying detailed threats, download button etc.
                 chrome.tabs.sendMessage(tabId, { action: "getContentThreats" }, (res) => {
                   const threats = res?.threats || [];
                   applyDarkModeStylesToTable();
