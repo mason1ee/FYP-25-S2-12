@@ -459,7 +459,6 @@ function startScan() {
 
   progressBar.style.width = "0%";
   resultText.textContent = "";
-  //detailedResults.innerHTML = "";
   vulnCountText.textContent = "";  // Clear vuln count on new scan
   statusText.textContent = "Scanning in Progress...";  // Show scanning status
 
@@ -483,13 +482,10 @@ function startScan() {
     if (!tabId) {
       clearInterval(interval);
       resultText.textContent = "Cannot scan this page. Restricted or unsupported URL.";
-      //No valid tab ID found for scanning.";
       statusText.textContent = "";
       console.error("Cannot scan this page. Restricted or unsupported URL.");
-      //"No valid tab ID found.");
-      //classificationBtn.style.display = "none";
       resetScanButton();
-      progressContainer.style.display="none";
+      progressContainer.style.display = "none";
       return;
     }
 
@@ -535,16 +531,15 @@ function startScan() {
             if (message.type === "page-analysis-result") {
               clearInterval(interval);
               progressBar.style.width = `100%`;
-              statusText.textContent = "Scan Completed!";  // Show completed status
+              statusText.textContent = "Scan Completed!";
 
               const contentThreats = message.threats || [];
 
               const hasInline = contentThreats.some(threat => threat.type === "inline");
 
-              // Get all non-inline threats
+              // Filter out inline threats for separate handling
               const filteredContentThreats = contentThreats.filter(threat => threat.type !== "inline");
 
-              // If inline exists, add a placeholder threat object
               if (hasInline) {
                 filteredContentThreats.push({ type: "inline", description: "Inline threat detected" });
               }
@@ -554,6 +549,17 @@ function startScan() {
               chrome.runtime.sendMessage({ action: "getSecurityHeaders" }, (res) => {
                 const headers = res?.headers || {};
                 const headerThreats = [];
+
+                // Define severity scores for header issues and protocol issues
+                const severityScores = {
+                  "Missing Content-Security-Policy": 5,
+                  "Missing Strict-Transport-Security": 5,
+                  "Missing X-Content-Type-Options": 3,
+                  "Missing X-Frame-Options": 2,
+                  "Page is not served over HTTPS": 10,
+                  "inline": 3,
+                  // You can add more custom threats here
+                };
 
                 if (!headers["content-security-policy"])
                   headerThreats.push("Missing Content-Security-Policy");
@@ -568,225 +574,245 @@ function startScan() {
                   headerThreats.push("Page is not served over HTTPS");
                 }
 
+                // Combine all threats (headers + content)
                 const allThreats = [...filteredContentThreats, ...headerThreats];
 
-                // original code to show all after scan
-                var isSecure = false;
+                // Calculate total severity score
+                let totalSeverityScore = 0;
 
-                if (allThreats.length > 0) {
-                  resultText.textContent = "Website is insecure!";
-                  resultText.style.color = "red";
+                allThreats.forEach(threat => {
+                  if (typeof threat === "string") {
+                    totalSeverityScore += severityScores[threat] || 1;
+                  } else if (threat.type) {
+                    totalSeverityScore += severityScores[threat.type] || 1;
+                  }
+                });
+
+                // Determine status based on severity score thresholds
+                let statusMessage = "";
+                let statusColor = "";
+                let isSecure = false;
+
+                console.log("Score: " + totalSeverityScore);
+                
+                if (totalSeverityScore >= 7) {
+                  statusMessage = "Website is insecure!";
+                  statusColor = "red";
                   isSecure = false;
-                  //detailedResults.innerHTML = ""; // Clear detailed list
-                  vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
+                } else if (totalSeverityScore >= 3) {
+                  statusMessage = "Website has some security warnings.";
+                  statusColor = "orange";
+                  isSecure = true; // Warning but not fully insecure
+                } else {
+                  statusMessage = "Website appears secure.";
+                  statusColor = "green";
+                  isSecure = true;
                 }
 
-                else {
-                  resultText.textContent = "Website appears secure.";
-                  resultText.style.color = "green";
-                  isSecure = true;
-                  //detailedResults.innerHTML = "";
+                resultText.textContent = statusMessage;
+                resultText.style.color = statusColor;
+
+                // Show vulnerabilities count if any
+                if (allThreats.length > 0) {
+                  vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
+                } else {
                   vulnCountText.textContent = "";
                 }
 
+                // Continue with your existing logic for displaying detailed threats, download button etc.
                 chrome.tabs.sendMessage(tabId, { action: "getContentThreats" }, (res) => {
                   const threats = res?.threats || [];
-
-                  // Apply dark mode styles immediately after building the table
                   applyDarkModeStylesToTable();
-
                 });
-                
-              // Show the download button
-              downloadBtn.style.display = "inline-block";
 
-              downloadBtn.onclick = () => {
-                chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
-                  chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
-                    if (!response || response.error) {
-                      alert(response?.error || "Unable to retrieve tab information.");
-                      return;
-                    }
-
-                    const { hostname, tabId, url } = response;
-
-                    const currentTab = { id: tabId, url };
-
-                    const options = {
-                      timeZone: "Asia/Singapore",
-                      year: "numeric",
-                      month: "2-digit",
-                      day: "2-digit",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      hour12: false,
-                    };
-                    const formatter = new Intl.DateTimeFormat("en-GB", options);
-                    const timestamp = formatter.format(new Date());
-
-                    // Count inline vs external entries
-                    const inlineCount = contentThreats.filter(
-                      th =>
-                        (typeof th === "string" && th.includes("inline-")) ||
-                        (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
-                    ).length;
-
-                    const externalScriptsSet = new Set();
-
-                    //Count external script
-                    contentThreats.forEach(th => {
-                      if (typeof th === "object" && th.scriptIndex?.startsWith("external-")) {
-                        externalScriptsSet.add(th.scriptIndex);
-                      } else if (typeof th === "string") {
-                        const match = th.match(/external-\d+/);
-                        if (match) externalScriptsSet.add(match[0]);
+                downloadBtn.style.display = "inline-block";
+                downloadBtn.onclick = () => {
+                  chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
+                    chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
+                      if (!response || response.error) {
+                        alert(response?.error || "Unable to retrieve tab information.");
+                        return;
                       }
-                    });
 
-                    const externalCount = externalScriptsSet.size;
+                      const { hostname, tabId, url } = response;
 
-                    // Initialize jsPDF
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF();
-                    let y = 10;
-                    
-                    // Load logo
-                    const imgUrl = chrome.runtime.getURL("Assets/logo/Webbed128.png");
-                    const imgData = await getBase64ImageFromUrl(imgUrl);
-                    doc.addImage(imgData, "PNG", 10, y, 48, 48);
-                    y += 58;
+                      const currentTab = { id: tabId, url };
 
-                    // Centered title
-                    const pageWidth = doc.internal.pageSize.getWidth();
+                      const options = {
+                        timeZone: "Asia/Singapore",
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                      };
+                      const formatter = new Intl.DateTimeFormat("en-GB", options);
+                      const timestamp = formatter.format(new Date());
 
-                    doc.setFontSize(18);
-                    const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
-                    const titleWidth = doc.getTextWidth(title);
-                    doc.text(title, (pageWidth - titleWidth) / 2, y);
-                    y += 10;
+                      // Count inline vs external entries
+                      const inlineCount = contentThreats.filter(
+                        th =>
+                          (typeof th === "string" && th.includes("inline-")) ||
+                          (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
+                      ).length;
 
-                    doc.setFontSize(18);
-                    const subheader = "    FYP-25-S2-12    ";
-                    const subheaderWidth = doc.getTextWidth(subheader);
-                    doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
-                    y += 12;
+                      const externalScriptsSet = new Set();
 
-                    // Summary info
-                    const protocol = new URL(currentTab.url).protocol;
-
-                    var message = isSecure ? "appears secure" : "is insecure!";
-                    var color = isSecure ? [0, 128, 0] : [255, 0, 0];
-
-                    doc.setTextColor(...color);
-                    doc.text(`Website ${message}`, 10, y);
-                    y += 10;
-
-                    doc.setTextColor(0, 0, 0);
-
-                    var jsActive = (hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname)) ? "JS Blocker Active" : "JS Blocker disabled";
-
-                    const infoLines = [
-                      `Report for: ${currentTab.url}`,
-                      `Scan Timestamp: ${timestamp}`,
-                      `${jsActive}`,
-                      `Protocol: ${protocol}`,
-                      `${allThreats.length} vulnerabilities detected`,
-                      `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`,
-                    ];
-
-                    infoLines.forEach((line) => {
-                      const split = doc.splitTextToSize(line, pageWidth - 20);
-                      split.forEach((part) => {
-                        doc.text(part, 10, y);
-                        y += 10;
+                      //Count external script
+                      contentThreats.forEach(th => {
+                        if (typeof th === "object" && th.scriptIndex?.startsWith("external-")) {
+                          externalScriptsSet.add(th.scriptIndex);
+                        } else if (typeof th === "string") {
+                          const match = th.match(/external-\d+/);
+                          if (match) externalScriptsSet.add(match[0]);
+                        }
                       });
-                    });
 
-                    y += 5;
+                      const externalCount = externalScriptsSet.size;
 
-                    // Threat logs
-                    let log = `Threats:\n`;
-                    let count = 0;
+                      // Initialize jsPDF
+                      const { jsPDF } = window.jspdf;
+                      const doc = new jsPDF();
+                      let y = 10;
+                      
+                      // Load logo
+                      const imgUrl = chrome.runtime.getURL("Assets/logo/Webbed128.png");
+                      const imgData = await getBase64ImageFromUrl(imgUrl);
+                      doc.addImage(imgData, "PNG", 10, y, 48, 48);
+                      y += 58;
 
-                    headerThreats.forEach((th) => {
-                      let line;
-                      if (typeof th === "string") {
-                        line = th;
-                      } else {
-                        const idx = th.scriptIndex || "unknown";
-                        const url = th.url || "n/a";
-                        const err = th.error ? " - " + th.error : "";
-                        line = `[${idx}] ${url}${err}`;
-                      }
-                      count++;
-                      log += `[${count}] ${line}\n`;
-                    });
+                      // Centered title
+                      const pageWidth = doc.internal.pageSize.getWidth();
 
-                    contentThreats.forEach((th) => {
-                      let line;
+                      doc.setFontSize(18);
+                      const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
+                      const titleWidth = doc.getTextWidth(title);
+                      doc.text(title, (pageWidth - titleWidth) / 2, y);
+                      y += 10;
 
-                      if (typeof th === "string") {
-                        line = th;
-                      } else {
-                        const idx = th.scriptIndex || "unknown";
+                      doc.setFontSize(18);
+                      const subheader = "    FYP-25-S2-12    ";
+                      const subheaderWidth = doc.getTextWidth(subheader);
+                      doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
+                      y += 12;
 
-                        // Skip inline scripts
-                        if (typeof idx === "string" && idx.startsWith("inline")) {
-                          return;
+                      // Summary info
+                      const protocol = new URL(currentTab.url).protocol;
+
+                      var message = isSecure ? "appears secure" : "is insecure!";
+                      var color = isSecure ? [0, 128, 0] : [255, 0, 0];
+
+                      doc.setTextColor(...color);
+                      doc.text(`Website ${message}`, 10, y);
+                      y += 10;
+
+                      doc.setTextColor(0, 0, 0);
+
+                      var jsActive = (hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname)) ? "JS Blocker Active" : "JS Blocker disabled";
+
+                      const infoLines = [
+                        `Report for: ${currentTab.url}`,
+                        `Scan Timestamp: ${timestamp}`,
+                        `${jsActive}`,
+                        `Protocol: ${protocol}`,
+                        `${allThreats.length} vulnerabilities detected`,
+                        `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`,
+                      ];
+
+                      infoLines.forEach((line) => {
+                        const split = doc.splitTextToSize(line, pageWidth - 20);
+                        split.forEach((part) => {
+                          doc.text(part, 10, y);
+                          y += 10;
+                        });
+                      });
+
+                      y += 5;
+
+                      // Threat logs
+                      let log = `Threats:\n`;
+                      let count = 0;
+
+                      headerThreats.forEach((th) => {
+                        let line;
+                        if (typeof th === "string") {
+                          line = th;
+                        } else {
+                          const idx = th.scriptIndex || "unknown";
+                          const url = th.url || "n/a";
+                          const err = th.error ? " - " + th.error : "";
+                          line = `[${idx}] ${url}${err}`;
+                        }
+                        count++;
+                        log += `[${count}] ${line}\n`;
+                      });
+
+                      contentThreats.forEach((th) => {
+                        let line;
+
+                        if (typeof th === "string") {
+                          line = th;
+                        } else {
+                          const idx = th.scriptIndex || "unknown";
+
+                          // Skip inline scripts
+                          if (typeof idx === "string" && idx.startsWith("inline")) {
+                            return;
+                          }
+
+                          const url = th.url || "n/a";
+                          const err = th.error ? " - " + th.error : "";
+                          line = `[${idx}] ${url}${err}`;
                         }
 
-                        const url = th.url || "n/a";
-                        const err = th.error ? " - " + th.error : "";
-                        line = `[${idx}] ${url}${err}`;
+                        count++;
+                        log += `[${count}] ${line}\n`;
+                      });
+
+                      if (inlineCount > 0) {
+                        count++;
+                        log += `[${count}] Total ${inlineCount} inline scripts\n`;
                       }
 
-                      count++;
-                      log += `[${count}] ${line}\n`;
+                      doc.setFontSize(11);
+                      const maxLineWidth = pageWidth - 20;
+                      const lines = doc.splitTextToSize(log, maxLineWidth);
+
+                      lines.forEach((line) => {
+                        if (y > doc.internal.pageSize.getHeight() - 10) {
+                          doc.addPage();
+                          y = 10;
+                          doc.setFontSize(11);
+                        }
+                        doc.text(line, 10, y);
+                        y += 6;
+                      });
+
+                      doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
                     });
 
-                    if (inlineCount > 0) {
-                      count++;
-                      log += `[${count}] Total ${inlineCount} inline scripts\n`;
+                    // Helper function
+                    function getBase64ImageFromUrl(imageUrl) {
+                      return new Promise((resolve, reject) => {
+                        fetch(imageUrl)
+                          .then((response) => response.blob())
+                          .then((blob) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                          })
+                          .catch(reject);
+                      });
                     }
-
-                    doc.setFontSize(11);
-                    const maxLineWidth = pageWidth - 20;
-                    const lines = doc.splitTextToSize(log, maxLineWidth);
-
-                    lines.forEach((line) => {
-                      if (y > doc.internal.pageSize.getHeight() - 10) {
-                        doc.addPage();
-                        y = 10;
-                        doc.setFontSize(11);
-                      }
-                      doc.text(line, 10, y);
-                      y += 6;
-                    });
-
-                    doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
                   });
+                };
+                
 
-                  // Helper function
-                  function getBase64ImageFromUrl(imageUrl) {
-                    return new Promise((resolve, reject) => {
-                      fetch(imageUrl)
-                        .then((response) => response.blob())
-                        .then((blob) => {
-                          const reader = new FileReader();
-                          reader.onloadend = () => resolve(reader.result);
-                          reader.onerror = reject;
-                          reader.readAsDataURL(blob);
-                        })
-                        .catch(reject);
-                    });
-                  }
-                });
-              };
-
-                // show whitelist/blacklist button
                 classificationBtn.style.display = "inline-block";
-              
+
                 resetScanButton();
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
@@ -800,6 +826,7 @@ function startScan() {
     });
   });
 }
+
 
 window.addEventListener("unload", () => {
   chrome.storage.local.remove("activeScanTabId", () => {
