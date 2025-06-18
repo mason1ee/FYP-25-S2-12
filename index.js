@@ -41,6 +41,8 @@ function updateUIBasedOnActiveTab() {
   chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
     const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
 
+    resetScanContainer();
+
     if (!activeTab || !activeTab.url) {
       // Set status to "Not Applicable"
       blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
@@ -76,9 +78,6 @@ function updateUIBasedOnActiveTab() {
 
 // For dynamic updates of JS Blocker Status
 function initializeListeners() {
-  chrome.tabs.onActivated.addListener(() => {
-    updateUIBasedOnActiveTab();
-  });
 
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (tab.active && changeInfo.url) {
@@ -96,6 +95,8 @@ function initializeListeners() {
     }
   });
 }
+
+initializeListeners();
 
 function updateCurrentDomain() {
   chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
@@ -120,11 +121,23 @@ function updateCurrentDomain() {
 
 // Initial load
 document.addEventListener("DOMContentLoaded", () => {
-  initializeListeners();
+  updateUIBasedOnActiveTab();
+
+   // Listen for tab switches
+  chrome.tabs.onActivated.addListener(() => {
+    updateUIBasedOnActiveTab();
+  });
+
+  // Listen for tab updates (like navigation or reload)
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === "complete" && tab.active) {
+      updateUIBasedOnActiveTab();
+    }
+  });
 
   updateCurrentDomain();
-  // Optional: keep it updated in case tab changes while popup is open
-  setInterval(updateCurrentDomain, 1000);
+  
+  setInterval(updateCurrentDomain, 10);
 });
 
 scanTabBtn.addEventListener("click", () => {
@@ -311,12 +324,6 @@ scanButton.addEventListener("click", startScan);
 let interval = null;
 let onScanResult = null;
 let isScanning = false;
-
-chrome.tabs.onActivated.addListener((activeInfo) => {
-  // When user switches tab, reset scan container
-  resetScanContainer();
-});
-
 
 function getTabIdForScanning(callback) {
   chrome.storage.local.get("activeScanTabId", (data) => {

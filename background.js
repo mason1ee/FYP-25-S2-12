@@ -73,10 +73,42 @@ function applyBlockerState() {
   });
 }
 
+// chrome.runtime.onInstalled.addListener(() => {
+//   console.log('Client-side Security Script Inspector extension installed');
+
+//   chrome.storage.local.get(["whitelist", "blacklist", "blocked"], (data) => {
+//     const updates = {};
+
+//     if (!data.whitelist) {
+//       updates.whitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
+//     }
+
+//     if (!data.blacklist) {
+//       updates.blacklist = ["evil.com", "maliciousdomain.net"];
+//     }
+
+//     if (typeof data.blocked !== "boolean") {
+//       updates.blocked = false;
+//     }
+
+//     const needUpdate = Object.keys(updates).length > 0;
+
+//     if (needUpdate) {
+//       chrome.storage.local.set(updates, () => {
+//         applyBlockerState();
+//         updateDynamicBlacklistRules(); // safe here
+//       });
+//     } else {
+//       applyBlockerState();
+//       updateDynamicBlacklistRules(); // also safe here
+//     }
+//   });
+// });
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Client-side Security Script Inspector extension installed');
 
-  chrome.storage.local.get(["whitelist", "blacklist", "blocked"], (data) => {
+  chrome.storage.local.get(["whitelist", "blacklist", "blocked", "jsBlockStates"], (data) => {
     const updates = {};
 
     if (!data.whitelist) {
@@ -89,6 +121,11 @@ chrome.runtime.onInstalled.addListener(() => {
 
     if (typeof data.blocked !== "boolean") {
       updates.blocked = false;
+    }
+
+    // Initialize jsBlockStates as an empty object if missing or not an object
+    if (!data.jsBlockStates || typeof data.jsBlockStates !== "object") {
+      updates.jsBlockStates = {};
     }
 
     const needUpdate = Object.keys(updates).length > 0;
@@ -104,6 +141,7 @@ chrome.runtime.onInstalled.addListener(() => {
     }
   });
 });
+
 
 chrome.runtime.onStartup.addListener(() => {
   applyBlockerState();

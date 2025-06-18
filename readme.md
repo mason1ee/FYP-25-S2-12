@@ -6,7 +6,7 @@
 
 - Assets
     - styles.css -
-    Style for the extension written here.
+    Styles for the extension written here.
 
 - _metadata
     - For JS Blocker.
@@ -19,7 +19,7 @@
     External library used for generation of PDF report.
 
 - background.js -
-Initializes default whitelist and blacklist on installation via chrome.storage.local, etc.
+Script running in the background. Initializes default whitelist and blacklist on installation via chrome.storage.local, etc.
 
 - content.js -
 The scanning logic JavaScript for the extension. The main scanning function is located in index.js but the scanning logic is all inside content.js
