@@ -34,7 +34,7 @@ Main JavaScript for the extension. The necessary functions of the extension is w
 Displays and filters the whitelist and blacklist in a table format, etc.
 
 - manifest.json -
-To declare the name, version, permissions needed for the extension and the various script that we're using.
+To declare the name, version, permissions needed for the extension and the various scripts that we're using.
 
 - preload-darkmode.js -
 JS script to preload darkmode if extension was set to dark mode previously.
