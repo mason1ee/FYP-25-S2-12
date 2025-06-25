@@ -1,47 +1,127 @@
+import { getActiveHttpTab } from "./background.js";
 const popoutButton = document.getElementById("popout-btn");
 const darkModeToggle = document.getElementById("dark-mode-toggle");
-
 const scanButton = document.getElementById("scan-button");
 const progressBar = document.getElementById("progress-bar");
 const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
 const resultText = document.getElementById("scan-result");
-//const detailedResults = document.getElementById("detailed-results");
 const downloadBtn = document.getElementById("download-log");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
 const classificationBtn = document.getElementById("classification-buttons");
-
 const scanTabBtn = document.getElementById("scan-tab-btn");
 const settingsTabBtn = document.getElementById("settings-tab-btn");
 const scanTab = document.getElementById("scan-tab");
 const settingsTab = document.getElementById("settings-tab");
-
 const sitesTabBtn = document.getElementById("sites-tab-btn");
 const sitesSection = document.getElementById("sites-section");
 const whitelistTabBtn = document.getElementById("whitelist-tab-btn");
 const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
 const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
-
-//const jsSettingsToggle = document.getElementById("toggle-js-blocker");
 const blockerStatusText = document.getElementById("blocker-status-text");
- 
 scanContainer.style.display = "none";
 
+// Initial load
+document.addEventListener("DOMContentLoaded", () => {
+  placeCreditsBanner();
+  updateUIBasedOnActiveTab();
+  updateCurrentDomain();
+  initializeExtension();
+  setInterval(updateCurrentDomain, 10);
+});
+
+// Hide popout button if already in a popout window
 if (popoutButton && chrome.windows) {
   chrome.windows.getCurrent((win) => {
-    if (win.type === "popup") {
-      popoutButton.style.display = "none";
+    win.type === "popup" ? popoutButton.style.display = "none" : popoutButton.style.display = "inline-block";
+  });
+}
+
+// Handle popout
+if (popoutButton) {
+  popoutButton.addEventListener("click", async () => {
+    try {
+      let activeTab = await getActiveHttpTab();
+
+      // Fallback: try to find an active tab from any normal window
+      if (!activeTab) {
+        const windows = await new Promise((resolve, reject) => {
+          chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (wins) => {
+            if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
+            resolve(wins);
+          });
+        });
+
+        for (const win of windows) {
+          activeTab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
+          if (activeTab) break;
+        }
+      }
+
+      if (activeTab) {
+        await new Promise((resolve) =>
+          chrome.storage.local.set({ activeScanTabId: activeTab.id }, resolve)
+        );
+
+        chrome.windows.create(
+          {
+            url: chrome.runtime.getURL("index.html"),
+            type: "popup",
+            width: 350,
+            height: 550
+          },
+          () => {
+            window.close();
+          }
+        );
+      } else {
+        console.error("No valid active tab found.");
+      }
+    } catch (err) {
+      console.error("Error during popout process:", err);
     }
   });
 }
 
-function updateUIBasedOnActiveTab() {
-  chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-    const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
+function initializeExtension() {
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === "complete" && tab.active) {
+      updateUIBasedOnActiveTab();
+    }
+    if (tab.active && changeInfo.url) {
+      updateUIBasedOnActiveTab();
+    }
+  });
 
+  chrome.tabs.onActivated.addListener(() => {
+    updateUIBasedOnActiveTab();
+  });
+
+  chrome.windows.onFocusChanged.addListener(() => {
+    updateUIBasedOnActiveTab();
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
+      updateUIBasedOnActiveTab();
+    }
+  });
+
+  chrome.storage.local.get("darkMode", ({ darkMode }) => {
+    const isDarkMode = Boolean(darkMode);
+    const root = document.documentElement;
+    root.classList.toggle("dark-mode", isDarkMode);
+    darkModeToggle.checked = isDarkMode;
+    localStorage.setItem("darkMode", isDarkMode);
+  });
+}
+
+async function updateUIBasedOnActiveTab() {
+  try {
     resetScanContainer();
+    const activeTab = await getActiveHttpTab();
 
     if (!activeTab || !activeTab.url) {
       // Set status to "Not Applicable"
@@ -66,41 +146,19 @@ function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.toggle("inactive", !isBlocked);
       blockerStatusText.classList.remove("na");
 
-      // Optionally toggle the checkbox
-      // jsSettingsToggle.checked = isBlocked;
-
       if (classificationBtn) {
         classificationBtn.style.display = "inline-block";
       }
     });
-  });
+  } catch (err) {
+    console.error("Failed to get active tab: ", err);
+  }
+  
 }
 
-// For dynamic updates of JS Blocker Status
-function initializeListeners() {
-
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (tab.active && changeInfo.url) {
-      updateUIBasedOnActiveTab();
-    }
-  });
-
-  chrome.windows.onFocusChanged.addListener(() => {
-    updateUIBasedOnActiveTab();
-  });
-
-  chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
-      updateUIBasedOnActiveTab();
-    }
-  });
-}
-
-initializeListeners();
-
-function updateCurrentDomain() {
-  chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-    const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
+async function updateCurrentDomain() {
+  try {
+    const activeTab = await getActiveHttpTab();
     const domainText = document.getElementById("current-domain");
 
     if (activeTab && activeTab.url) {
@@ -116,29 +174,12 @@ function updateCurrentDomain() {
       scanButton.style.display = "none";
       domainText.textContent = "No active website detected.";
     }
-  });
+  } catch (err) {
+    console.log("Failed to get active tab: ", err);
+  }
 }
 
-// Initial load
-document.addEventListener("DOMContentLoaded", () => {
-  updateUIBasedOnActiveTab();
-
-   // Listen for tab switches
-  chrome.tabs.onActivated.addListener(() => {
-    updateUIBasedOnActiveTab();
-  });
-
-  // Listen for tab updates (like navigation or reload)
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === "complete" && tab.active) {
-      updateUIBasedOnActiveTab();
-    }
-  });
-
-  updateCurrentDomain();
-  
-  setInterval(updateCurrentDomain, 10);
-});
+scanButton.addEventListener("click", startScan);
 
 scanTabBtn.addEventListener("click", () => {
   scanTab.style.display = "block";
@@ -167,6 +208,20 @@ sitesTabBtn.addEventListener("click", () => {
   sitesTabBtn.classList.add("active");
 });
 
+darkModeToggle.addEventListener("change", () => {
+  const enabled = darkModeToggle.checked;
+  const root = document.documentElement;
+
+  // Enable transitions only *after* the user toggles
+  root.classList.add("enable-transitions");
+  root.classList.toggle("dark-mode", enabled);
+
+  chrome.storage.local.set({ darkMode: enabled });
+  localStorage.setItem("darkMode", enabled);
+
+  applyDarkModeStylesToTable();
+});
+
 /* Website list Tab Navigation */
 whitelistTabBtn.addEventListener("click", () => {
   whitelistTab.style.display = "block";
@@ -182,59 +237,6 @@ blacklistTabBtn.addEventListener("click", () => {
   blacklistTabBtn.classList.add("active");
 });
 
-// Handle popout
-if (popoutButton) {
-  popoutButton.addEventListener("click", () => {
-    chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-      const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
-      if (activeTab) {
-        chrome.storage.local.set({ activeScanTabId: activeTab.id }, () => {
-          chrome.windows.create({
-            url: chrome.runtime.getURL("index.html"),
-            type: "popup",
-            width: 350,
-            height: 550
-          }, () => {
-            window.close();
-          });
-        });
-      } else {
-        // Fallback: try to find any valid active tab across all normal windows
-        chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
-          for (const win of windows) {
-            const fallbackTab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
-            if (fallbackTab) {
-              chrome.storage.local.set({ activeScanTabId: fallbackTab.id }, () => {
-                chrome.windows.create({
-                  url: chrome.runtime.getURL("index.html"),
-                  type: "popup",
-                  width: 350,
-                  height: 550
-                }, () => {
-                  window.close();
-                });
-              });
-              return;
-            }
-          }
-          console.error("No valid active tab found.");
-        });
-      }
-    });
-  });
-}
-
-// Hide popout button if already in a popout window
-chrome.windows.getCurrent({ populate: false }, (window) => {
-  if (window && window.type === "popup") {
-    // Small popups opened by the extension will have height less than typical popouts
-    if (window.height > 600 || window.width > 400) {
-      const popoutBtn = document.getElementById("popout-btn");
-      if (popoutBtn) popoutBtn.style.display = "none";
-    }
-  }
-});
-
 function resetScanButton() {
   isScanning = false;
   scanButton.disabled = false;
@@ -242,88 +244,6 @@ function resetScanButton() {
   scanButton.style.opacity = 1;
   scanButton.style.cursor = "pointer";
 }
-
-chrome.storage.local.get("darkMode", ({ darkMode }) => {
-  const isDarkMode = Boolean(darkMode);
-  const root = document.documentElement;
-
-  root.classList.toggle("dark-mode", isDarkMode);
-  darkModeToggle.checked = isDarkMode;
-
-  
-  localStorage.setItem("darkMode", isDarkMode);
-});
-
-darkModeToggle.addEventListener("change", () => {
-  const enabled = darkModeToggle.checked;
-  const root = document.documentElement;
-
-  // Enable transitions only *after* the user toggles
-  root.classList.add("enable-transitions");
-  root.classList.toggle("dark-mode", enabled);
-
-  chrome.storage.local.set({ darkMode: enabled });
-  localStorage.setItem("darkMode", enabled);
-
-  applyDarkModeStylesToTable();
-});
-
-// jsSettingsToggle.addEventListener("change", () => {
-//   chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, (response) => {
-//     if (!response || response.error) {
-//       alert(response?.error || "Unable to retrieve tab information.");
-//       jsSettingsToggle.checked = false;
-//       blockerStatusText.innerText = "INACTIVE";
-//       blockerStatusText.classList.remove("active");
-//       blockerStatusText.classList.add("inactive");
-//       return;
-//     }
-
-//     const { hostname, tabId } = response;
-
-//     chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
-//       const { blacklist, jsBlockStates } = data;
-
-//       if (!blacklist.includes(hostname)) {
-//         alert(`${hostname} is not blacklisted.\nJS blocking will not be applied.`);
-//         jsSettingsToggle.checked = false;
-//         blockerStatusText.innerText = "INACTIVE";
-//         blockerStatusText.classList.remove("active");
-//         blockerStatusText.classList.add("inactive");
-//         return;
-//       }
-
-//       const shouldBlock = jsSettingsToggle.checked;
-//       jsBlockStates[hostname] = shouldBlock;
-
-//       chrome.storage.local.set({ jsBlockStates }, () => {
-//         blockerStatusText.innerText = shouldBlock ? "ACTIVE" : "INACTIVE";
-//         blockerStatusText.classList.toggle("active", shouldBlock);
-//         blockerStatusText.classList.toggle("inactive", !shouldBlock);
-
-//         // Apply the rule (must define this function somewhere)
-//         updateJSBlockRuleForHost(hostname, shouldBlock);
-
-//         // Notify the user to refresh
-//         chrome.scripting.executeScript({
-//           target: { tabId },
-//           func: (state) => {
-//             alert(
-//               `JS Blocker is now ${state ? "ACTIVE" : "INACTIVE"}.\nPlease manually refresh the page to apply changes.`
-//             );
-//           },
-//           args: [shouldBlock]
-//         });
-//       });
-//     });
-//   });
-// });
-
-scanButton.addEventListener("click", startScan);
-
-let interval = null;
-let onScanResult = null;
-let isScanning = false;
 
 function getTabIdForScanning(callback) {
   chrome.storage.local.get("activeScanTabId", (data) => {
@@ -346,9 +266,9 @@ function getTabIdForScanning(callback) {
   });
 }
 
-function fallbackToActiveTab(callback) {
-  chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-    let tab = focusedWindow?.tabs?.find(tab => tab.active && isValidTab(tab));
+async function fallbackToActiveTab(callback) {
+  try{
+    let tab = await getActiveHttpTab();
 
     if (tab) {
       callback(tab.id);
@@ -367,7 +287,9 @@ function fallbackToActiveTab(callback) {
         callback(null);
       });
     }
-  });
+  } catch (err) {
+    console.log("Error getting active tab:", err);
+  }
 }
 
 function isValidTab(tab) {
@@ -411,6 +333,10 @@ function applyDarkModeStylesToTable() {
   }
 }
 
+let interval = null;
+let onScanResult = null;
+let isScanning = false;
+
 function resetScanContainer() {
   // Hide scan container UI
   scanContainer.style.display = "none";
@@ -443,6 +369,17 @@ function resetScanContainer() {
 
   // Reset scanning flag
   isScanning = false;
+}
+
+let allThreats = [];
+let totalSeverityScore = 0;
+
+async function printDomainScore() {
+  let currentTab = await getActiveHttpTab();
+  let url = new URL(currentTab.url)
+
+  console.log(url.hostname + "s Total Vulnerabilities: " + allThreats.length);
+  console.log(url.hostname + "'s Score: " + totalSeverityScore);
 }
 
 function startScan() {
@@ -574,11 +511,9 @@ function startScan() {
                 }
 
                 // Combine all threats (headers + content)
-                const allThreats = [...filteredContentThreats, ...headerThreats];
+                allThreats = [...filteredContentThreats, ...headerThreats];
 
                 // Calculate total severity score
-                let totalSeverityScore = 0;
-
                 allThreats.forEach(threat => {
                   if (typeof threat === "string") {
                     totalSeverityScore += severityScores[threat] || 1;
@@ -592,7 +527,7 @@ function startScan() {
                 let statusColor = "";
                 let isSecure = false;
 
-                console.log("Score: " + totalSeverityScore);
+                printDomainScore();
                 
                 if (totalSeverityScore >= 7) {
                   statusMessage = "Website is insecure!";
@@ -826,6 +761,31 @@ function startScan() {
   });
 }
 
+function placeCreditsBanner() {
+  const banner = document.getElementById('credits-banner');
+  const scanTab = document.getElementById('scan-tab');
+  const settingsTab = document.getElementById('settings-tab');
+  const sitesSection = document.getElementById('sites-section');
+
+  // Remove from current location if any
+  banner.style.display = 'block';  // Show it
+
+  // Clear duplicates if any
+  [scanTab, settingsTab, sitesSection].forEach(section => {
+    const existing = section.querySelector('#credits-banner');
+    if (existing && existing !== banner) {
+      existing.remove();
+    }
+  });
+
+  // Append a clone or the original to each section that needs it:
+  scanTab.appendChild(banner.cloneNode(true));
+  settingsTab.appendChild(banner.cloneNode(true));
+  sitesSection.appendChild(banner.cloneNode(true));
+
+  // Hide original container if you want to keep it hidden
+  banner.style.display = 'none';
+}
 
 window.addEventListener("unload", () => {
   chrome.storage.local.remove("activeScanTabId", () => {

@@ -73,38 +73,6 @@ function applyBlockerState() {
   });
 }
 
-// chrome.runtime.onInstalled.addListener(() => {
-//   console.log('Client-side Security Script Inspector extension installed');
-
-//   chrome.storage.local.get(["whitelist", "blacklist", "blocked"], (data) => {
-//     const updates = {};
-
-//     if (!data.whitelist) {
-//       updates.whitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
-//     }
-
-//     if (!data.blacklist) {
-//       updates.blacklist = ["evil.com", "maliciousdomain.net"];
-//     }
-
-//     if (typeof data.blocked !== "boolean") {
-//       updates.blocked = false;
-//     }
-
-//     const needUpdate = Object.keys(updates).length > 0;
-
-//     if (needUpdate) {
-//       chrome.storage.local.set(updates, () => {
-//         applyBlockerState();
-//         updateDynamicBlacklistRules(); // safe here
-//       });
-//     } else {
-//       applyBlockerState();
-//       updateDynamicBlacklistRules(); // also safe here
-//     }
-//   });
-// });
-
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Client-side Security Script Inspector extension installed');
 
@@ -123,7 +91,6 @@ chrome.runtime.onInstalled.addListener(() => {
       updates.blocked = false;
     }
 
-    // Initialize jsBlockStates as an empty object if missing or not an object
     if (!data.jsBlockStates || typeof data.jsBlockStates !== "object") {
       updates.jsBlockStates = {};
     }
@@ -133,15 +100,14 @@ chrome.runtime.onInstalled.addListener(() => {
     if (needUpdate) {
       chrome.storage.local.set(updates, () => {
         applyBlockerState();
-        updateDynamicBlacklistRules(); // safe here
+        updateDynamicBlacklistRules();
       });
     } else {
       applyBlockerState();
-      updateDynamicBlacklistRules(); // also safe here
+      updateDynamicBlacklistRules();
     }
   });
 });
-
 
 chrome.runtime.onStartup.addListener(() => {
   applyBlockerState();
@@ -164,7 +130,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "getActiveTabHostname") {
     chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
       if (focusedWindow) {
-        const activeTab = focusedWindow.tabs.find(tab => 
+        const activeTab = focusedWindow.tabs.find(tab =>
           tab.active && (tab.url.startsWith("http://") || tab.url.startsWith("https://"))
         );
 
@@ -180,7 +146,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
       }
 
-      // fallback: search all windows if none found in focused window
       chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
         for (const win of windows) {
           const activeTab = win.tabs.find(tab =>
@@ -200,22 +165,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         sendResponse({ error: "No valid active tab found." });
       });
     });
-
     return true;
   }
 
   if (message.action === "getSecurityHeaders") {
     sendResponse({ headers: lastSecurityHeaders });
+    return true;
   }
 
-  else if (message.action === "getActiveTab") {
+  if (message.action === "getActiveTab") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       sendResponse({ tab: tabs[0] });
     });
     return true;
   }
 
-  else if (message.setBlocked !== undefined) {
+  if (message.setBlocked !== undefined) {
     const blocked = message.setBlocked;
 
     chrome.storage.local.set({ blocked }, () => {
@@ -226,7 +191,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       );
       sendResponse({ blocked });
     });
+    return true;
+  }
 
+  if (message.type === "getActiveTabInfo") {
+    const sendTabInfo = (tab) => {
+      if (!tab || !tab.url?.startsWith("http")) {
+        sendResponse({ error: "No valid HTTP(S) tab found." });
+        return;
+      }
+
+      try {
+        const hostname = new URL(tab.url).hostname;
+        sendResponse({ hostname, tabId: tab.id, url: tab.url });
+      } catch {
+        sendResponse({ error: "Failed to parse hostname." });
+      }
+    };
+
+    chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
+      const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
+      if (activeTab) {
+        sendTabInfo(activeTab);
+      } else {
+        chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
+          for (const win of windows) {
+            const tab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
+            if (tab) {
+              sendTabInfo(tab);
+              return;
+            }
+          }
+          sendResponse({ error: "No valid active tab found." });
+        });
+      }
+    });
     return true;
   }
 
@@ -236,7 +235,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local") {
     if (changes.blacklist) {
-      updateDynamicBlacklistRules(); // Trigger DNR update
+      updateDynamicBlacklistRules();
     }
     if (changes.blocked) {
       applyBlockerState();
@@ -263,41 +262,18 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   }
 });
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "getActiveTabInfo") {
-    const sendTabInfo = (tab) => {
-      if (!tab || !tab.url?.startsWith("http")) {
-        sendResponse({ error: "No valid HTTP(S) tab found." });
-        return;
-      }
-
-      try {
-        const hostname = new URL(tab.url).hostname;
-        sendResponse({ hostname, tabId: tab.id, url: tab.url });
-      } catch {
-        sendResponse({ error: "Failed to parse hostname." });
-      }
-    };
-
+export async function getActiveHttpTab() {
+  return new Promise((resolve, reject) => {
     chrome.windows.getLastFocused({ populate: true, windowTypes: ["normal"] }, (focusedWindow) => {
-      const activeTab = focusedWindow?.tabs?.find(tab => tab.active && tab.url?.startsWith("http"));
-      if (activeTab) {
-        sendTabInfo(activeTab);
-      } else {
-        // Fallback to all windows
-        chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
-          for (const win of windows) {
-            const tab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
-            if (tab) {
-              sendTabInfo(tab);
-              return;
-            }
-          }
-          sendResponse({ error: "No valid active tab found." });
-        });
+      if (chrome.runtime.lastError) {
+        return reject(chrome.runtime.lastError);
       }
-    });
 
-    return true; // ✅ KEEP THE MESSAGE PORT OPEN
-  }
-});
+      const activeTab = focusedWindow?.tabs?.find(
+        tab => tab.active && tab.url?.startsWith("http")
+      );
+
+      resolve(activeTab || null);
+    });
+  });
+}
