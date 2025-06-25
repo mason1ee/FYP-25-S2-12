@@ -15,8 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const whitelistBtn = document.getElementById("whitelistBtn");
     const blacklistBtn = document.getElementById("blacklistBtn");
 
-    console.log(document.getElementById('jsSettingsToggle'));
-
      whitelistBtn.addEventListener("click", () => {
       chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, (response) => {
         if (response.error) {
