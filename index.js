@@ -378,7 +378,7 @@ async function printDomainScore() {
   let currentTab = await getActiveHttpTab();
   let url = new URL(currentTab.url)
 
-  console.log(url.hostname + "s Total Vulnerabilities: " + allThreats.length);
+  console.log(url.hostname + "'s Total Vulnerabilities: " + allThreats.length);
   console.log(url.hostname + "'s Score: " + totalSeverityScore);
 }
 
