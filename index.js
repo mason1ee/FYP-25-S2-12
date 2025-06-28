@@ -30,6 +30,10 @@ document.addEventListener("DOMContentLoaded", () => {
   updateCurrentDomain();
   initializeExtension();
   setInterval(updateCurrentDomain, 10);
+  
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab') || 'scan';
+  activateTab(tab);
 });
 
 // Hide popout button if already in a popout window
@@ -43,42 +47,58 @@ if (popoutButton && chrome.windows) {
 if (popoutButton) {
   popoutButton.addEventListener("click", async () => {
     try {
-      let activeTab = await getActiveHttpTab();
+      // Step 1: Determine which extension tab is active
+      const activeTabBtn = document.querySelector('.tab-nav .nav-tab.active');
+      let tab = 'scan'; // default
 
-      // Fallback: try to find an active tab from any normal window
-      if (!activeTab) {
-        const windows = await new Promise((resolve, reject) => {
-          chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (wins) => {
-            if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
-            resolve(wins);
+      if (activeTabBtn) {
+        const id = activeTabBtn.id;
+        if (id.includes('settings')) tab = 'settings';
+        else if (id.includes('sites')) tab = 'sites';
+      }
+
+      // Step 2: Try to get the active HTTP tab (non-critical)
+      try {
+        let activeTab = await getActiveHttpTab();
+
+        if (!activeTab) {
+          const windows = await new Promise((resolve, reject) => {
+            chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (wins) => {
+              if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
+              resolve(wins);
+            });
           });
-        });
 
-        for (const win of windows) {
-          activeTab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
-          if (activeTab) break;
-        }
-      }
-
-      if (activeTab) {
-        await new Promise((resolve) =>
-          chrome.storage.local.set({ activeScanTabId: activeTab.id }, resolve)
-        );
-
-        chrome.windows.create(
-          {
-            url: chrome.runtime.getURL("index.html"),
-            type: "popup",
-            width: 350,
-            height: 550
-          },
-          () => {
-            window.close();
+          for (const win of windows) {
+            activeTab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
+            if (activeTab) break;
           }
-        );
-      } else {
-        console.error("No valid active tab found.");
+        }
+
+        // If found, store it
+        if (activeTab) {
+          await new Promise((resolve) =>
+            chrome.storage.local.set({ activeScanTabId: activeTab.id }, resolve)
+          );
+        }
+
+      } catch (tabErr) {
+        console.warn("No active HTTP tab found. Skipping tab ID storage.");
       }
+
+      // Step 3: Open the popup window regardless
+      chrome.windows.create(
+        {
+          url: chrome.runtime.getURL(`index.html?tab=${tab}`),
+          type: "popup",
+          width: 350,
+          height: 550
+        },
+        () => {
+          window.close(); // Close original popup
+        }
+      );
+
     } catch (err) {
       console.error("Error during popout process:", err);
     }
@@ -116,6 +136,27 @@ function initializeExtension() {
     darkModeToggle.checked = isDarkMode;
     localStorage.setItem("darkMode", isDarkMode);
   });
+}
+
+function activateTab(tabName) {
+  // Hide all sections
+  document.querySelectorAll('.section, #scan-tab').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+
+  // Show selected tab
+  switch (tabName) {
+    case 'settings':
+      document.getElementById('settings-tab').style.display = 'block';
+      document.getElementById('settings-tab-btn').classList.add('active');
+      break;
+    case 'sites':
+      document.getElementById('sites-section').style.display = 'block';
+      document.getElementById('sites-tab-btn').classList.add('active');
+      break;
+    default:
+      document.getElementById('scan-tab').style.display = 'block';
+      document.getElementById('scan-tab-btn').classList.add('active');
+  }
 }
 
 async function updateUIBasedOnActiveTab() {

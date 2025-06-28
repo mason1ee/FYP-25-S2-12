@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Webbed | FYP-25-S2-12",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Client-Side Script Security Inspector",
   "icons": {
     "128": "Assets/logo/logo128x128.png",
