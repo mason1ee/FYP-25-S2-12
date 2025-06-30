@@ -220,6 +220,10 @@ async function updateCurrentDomain() {
   }
 }
 
+document.getElementById("alert-close").addEventListener("click", () => {
+  document.getElementById("custom-alert").classList.add("hidden");
+});
+
 scanButton.addEventListener("click", startScan);
 
 scanTabBtn.addEventListener("click", () => {
@@ -490,7 +494,7 @@ function startScan() {
 
       chrome.scripting.executeScript({
         target: { tabId },
-        files: ["libs/acorn.min.js", "content.js"]
+        files: ["libs/acorn.min.js", "utils/alerts.js" ,"content.js"]
       }, () => {
         if (chrome.runtime.lastError) {
           clearInterval(interval);
@@ -609,7 +613,7 @@ function startScan() {
                   chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
                     chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
                       if (!response || response.error) {
-                        alert(response?.error || "Unable to retrieve tab information.");
+                        showCustomAlert(response?.error || "Unable to retrieve tab information.");
                         return;
                       }
 

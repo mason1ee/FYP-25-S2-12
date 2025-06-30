@@ -40,8 +40,8 @@
       "run_at": "document_start"
     },
     {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["libs/acorn.min.js", "content.js", "libs/jspdf.umd.min.js"],
+      "matches": ["<all_urls>"],
+      "js": ["utils/alerts.js", "content.js", "libs/acorn.min.js", "libs/jspdf.umd.min.js"],
       "run_at": "document_idle"
     }
   ]
