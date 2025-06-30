@@ -246,6 +246,10 @@ sitesTabBtn.addEventListener("click", () => {
   sitesSection.style.display = "block";
   scanTabBtn.classList.remove("active");
   settingsTabBtn.classList.remove("active");
+  whitelistTab.style.display = "block";
+  blacklistTab.style.display = "none";
+  whitelistTabBtn.classList.add("active");
+  blacklistTabBtn.classList.remove("active");
   sitesTabBtn.classList.add("active");
 });
 
