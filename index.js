@@ -613,7 +613,7 @@ function startScan() {
                   chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
                     chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
                       if (!response || response.error) {
-                        showCustomAlert(response?.error || "Unable to retrieve tab information.");
+                        showCustomAlert(response?.error || "Unable to retrieve tab information.", 5000);
                         return;
                       }
 

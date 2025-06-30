@@ -290,7 +290,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         chrome.scripting.executeScript({
           target: { tabId },
           func: () => {
-            showCustomAlert("⚠️ Warning: This site is in your blacklist!\n JS Blocker is ACTIVE");
+            showCustomAlert("⚠️ Warning: This site is in your blacklist!\n JS Blocker is ACTIVE", 3500);
           }
         });
       }

@@ -3,18 +3,97 @@ import { getActiveHttpTab } from './background.js';
 let whitelistFilterInput, blacklistFilterInput, whitelistBody, blacklistBody, whitelistSortBtn, blacklistSortBtn, whitelistBtn, blacklistBtn;
 let whitelist = [], blacklist = [];
 
-async function reloadOriginalTab() {
+async function reloadTabsMatchingOriginalTabDomain() {
   try {
     const activeTab = await getActiveHttpTab();
-    if (activeTab && activeTab.id) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      chrome.tabs.reload(activeTab.id);
-      console.log(`Reloaded tab ${activeTab.id} (${activeTab.url})`);
-    } else {
-      console.warn("No suitable active HTTP tab found to reload.");
+    if (!activeTab || !activeTab.url) {
+      console.warn("No suitable active HTTP tab found to match against.");
+      return;
     }
+
+    const activeUrl = new URL(activeTab.url);
+    const activeDomain = activeUrl.hostname;
+
+    const allTabs = await chrome.tabs.query({});
+
+    const matchingTabs = allTabs.filter(tab => {
+      try {
+        const url = new URL(tab.url);
+        return (
+          url.hostname === activeDomain || url.hostname.endsWith(`.${activeDomain}`)
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    if (matchingTabs.length === 0) {
+      console.log("No open tabs matched the active tab's domain.");
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    for (const tab of matchingTabs) {
+      if (tab.id !== undefined) {
+        chrome.tabs.reload(tab.id);
+        console.log(`Reloaded tab ${tab.id}: ${tab.url}`);
+      }
+    }
+
+    if (typeof window.showCustomAlert === "function") {
+      window.showCustomAlert(
+        `Reloaded ${matchingTabs.length} tab(s) matching domain: ${activeDomain}`,
+        3000,
+        false
+      );
+    }
+
   } catch (error) {
-    console.error("Error getting active HTTP tab:", error);
+    console.error("Error reloading tabs matching active tab domain:", error);
+  }
+}
+
+async function reloadTabsByDomainFromBlacklist(blacklist) {
+  try {
+    if (!Array.isArray(blacklist) || blacklist.length === 0) {
+      console.warn("Blacklist is empty or invalid, no tabs will be reloaded.");
+      return;
+    }
+
+    const tabs = await chrome.tabs.query({});
+
+    const matchingTabs = tabs.filter(tab => {
+      try {
+        const url = new URL(tab.url);
+        return blacklist.some(domain =>
+          url.hostname === domain || url.hostname.endsWith(`.${domain}`)
+        );
+      } catch {
+        return false;
+      }
+    });
+
+    if (matchingTabs.length === 0) {
+      console.log("No open tabs matched blacklist domains.");
+      return;
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    for (const tab of matchingTabs) {
+      if (tab.id !== undefined) {
+        chrome.tabs.reload(tab.id);
+        console.log(`Reloaded tab ${tab.id}: ${tab.url}`);
+      }
+    }
+
+    if (typeof window.showCustomAlert === "function") {
+      window.showCustomAlert(`Reloaded ${matchingTabs.length} tab(s) matching blacklist domains.`, 3000, false);
+    }
+
+  } catch (error) {
+    console.error("Error reloading tabs by blacklist domains:", error);
   }
 }
 
@@ -39,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
     whitelistBtn.addEventListener("click", async () => {
       chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, async (response) => {
         if (response.error) {
-          showCustomAlert(response.error);
+          showCustomAlert(response.error, 5000);
           return;
         }
 
@@ -50,19 +129,19 @@ document.addEventListener("DOMContentLoaded", () => {
           const blacklist = data.blacklist;
 
           if (blacklist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already blacklisted and cannot be added to the whitelist.`);
+            showCustomAlert(`${hostname} is already blacklisted and cannot be added to the whitelist.`, 3000);
             return;
           }
 
           if (whitelist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already whitelisted.`);
+            showCustomAlert(`${hostname} is already whitelisted.`, 3000);
             return;
           }
 
           whitelist.push(hostname);
           chrome.storage.local.set({ whitelist }, async () => {
-            showCustomAlert(`${hostname} added to Whitelist! Refreshing page...`);
-            await reloadOriginalTab();
+            showCustomAlert(`${hostname} added to Whitelist! Refreshing page...`, 3000, false);
+            await reloadTabsMatchingOriginalTabDomain();
           });
         });
       });
@@ -71,7 +150,7 @@ document.addEventListener("DOMContentLoaded", () => {
     blacklistBtn.addEventListener("click", async () => {
       chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, async (response) => {
         if (response.error) {
-          showCustomAlert(response.error);
+          showCustomAlert(response.error, 5000);
           return;
         }
 
@@ -82,19 +161,19 @@ document.addEventListener("DOMContentLoaded", () => {
           const blacklist = data.blacklist;
 
           if (whitelist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already whitelisted and cannot be added to the blacklist.`);
+            showCustomAlert(`${hostname} is already whitelisted and cannot be added to the blacklist.`, 3000);
             return;
           }
 
           if (blacklist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already blacklisted.`);
+            showCustomAlert(`${hostname} is already blacklisted.`, 3000);
             return;
           }
 
           blacklist.push(hostname);
           chrome.storage.local.set({ blacklist }, async () => {
-            showCustomAlert(`${hostname} added to Blacklist! Refreshing page...`);
-            await reloadOriginalTab();
+            showCustomAlert(`${hostname} added to Blacklist! Refreshing page...`, 3000, false);
+            await reloadTabsMatchingOriginalTabDomain();
           });
         });
       });
@@ -123,32 +202,56 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("reset-lists").addEventListener("click", () => {
-      if (confirm("Are you sure you want to reset all lists?")) {
-        const defaultWhitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
-        const defaultBlacklist = ["evil.com", "maliciousdomain.net"];
+      showCustomConfirm(
+        "Are you sure you want to reset all lists?",
+        async () => {
+          try {
+            const defaultWhitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
+            const defaultBlacklist = ["evil.com", "maliciousdomain.net"];
 
-        chrome.storage.local.set({
-          whitelist: defaultWhitelist,
-          blacklist: defaultBlacklist,
-          jsBlockStates: {}
-        }, () => {
-          chrome.declarativeNetRequest.getDynamicRules((rules) => {
-            const ruleIds = rules.map(rule => rule.id);
-            chrome.declarativeNetRequest.updateDynamicRules({
-              removeRuleIds: ruleIds
-            }, () => {
-              if (chrome.runtime.lastError) {
-                console.error("Error removing rules:", chrome.runtime.lastError);
-              } else {
-                console.log("All blocking rules removed.");
-              }
+            // STEP 1: Get the current (pre-reset) blacklist
+            const { blacklist: oldBlacklist = [] } = await chrome.storage.local.get("blacklist");
 
-              showCustomAlert("All website lists and JS blocking rules have been reset.");
-              refreshLists();
+            // STEP 2: Reset storage to defaults
+            await chrome.storage.local.set({
+              whitelist: defaultWhitelist,
+              blacklist: defaultBlacklist,
+              jsBlockStates: {}
             });
-          });
-        });
-      }
+
+            // STEP 3: Remove all dynamic rules
+            const rules = await new Promise((resolve) =>
+              chrome.declarativeNetRequest.getDynamicRules(resolve)
+            );
+            const ruleIds = rules.map(rule => rule.id);
+
+            await new Promise((resolve) =>
+              chrome.declarativeNetRequest.updateDynamicRules(
+                { removeRuleIds: ruleIds },
+                resolve
+              )
+            );
+
+            if (chrome.runtime.lastError) {
+              console.error("Error removing rules:", chrome.runtime.lastError);
+            } else {
+              console.log("All blocking rules removed.");
+
+              // STEP 4: Reload tabs that match the OLD blacklist
+              await reloadTabsByDomainFromBlacklist(oldBlacklist);
+
+              showCustomAlert("All website lists and JS blocking rules have been reset.", 1500);
+              refreshLists();
+            }
+          } catch (error) {
+            console.error("Error during list reset:", error);
+          }
+        },
+        () => {
+          console.log("User canceled the reset.");
+        },
+        1000
+      );
     });
 
   }); // end chrome.storage.local.get
@@ -207,7 +310,7 @@ async function removeDomain(domain, listName, jsSettingsToggle, blockerStatusTex
       }
 
       chrome.storage.local.set({ [listName]: list, jsBlockStates }, async () => {
-        showCustomAlert(`${domain} removed from ${listName}. Refreshing page...`);
+        showCustomAlert(`${domain} removed from ${listName}. Refreshing page...`, 3000, false);
         refreshLists();
 
         const activeTab = await getActiveHttpTab();
@@ -226,7 +329,7 @@ async function removeDomain(domain, listName, jsSettingsToggle, blockerStatusTex
 
           updateJSBlockRuleForHost(domain, false);
 
-          await reloadOriginalTab();
+          await reloadTabsMatchingOriginalTabDomain();
         }
       });
     }
