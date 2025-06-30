@@ -153,7 +153,7 @@ document.addEventListener("DOMContentLoaded", () => {
               chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: () => {
-                  alert("JS Blocker is now INACTIVE.\nPlease manually refresh the page to apply changes.");
+                  alert("JS Blocker detected changes.\nPlease manually refresh the page to apply changes.");
                 }
               });
             }
