@@ -5,8 +5,15 @@
   <link rel="stylesheet" href="Assets/styles.css">
   <title>Webbed | FYP-25-S2-12</title>
   <link rel="icon" href="Assets/logo/logo16x16.png" type="image/png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
+  <!-- Starting screen -->
+  <div id="splash-screen">
+    <img src="Assets/logo/logo128x128.png" alt="Webbed Logo">
+    <p>Loading Webbed...</p>
+  </div>
+
   <button id="popout-btn" title="Pop out to a new window" aria-label="Pop out">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
       viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -30,6 +37,7 @@
     <p id="scan-instruction">
       Click "Start Scan" to start scanning for web vulnerabilities
     </p>
+    <br>
     <button id="scan-button" title="Perform a Scan on current website" >Start Scan</button>
     <p id="current-domain">Loading domain...</p>
 
@@ -47,7 +55,8 @@
       <button id="download-log" style="display: none;">
         Download Report
       </button>
-    </div>
+     
+    </div> <br>
     <div id="classification-buttons">
       <button id="whitelistBtn" class="action-button">Add to Whitelist</button>
       <button id="blacklistBtn" class="action-button">Add to Blacklist</button>
@@ -75,7 +84,7 @@
 
   <!-- Websites Tab -->
   <div id="sites-section" class="section" style="display: none;">
-    <h1>Manage Websites</h1>
+    <h2>Manage Websites</h2>
     <button id="reset-lists">Reset Lists</button>
     <div class="tab-nav">
       <button class="nav-tab active" id="whitelist-tab-btn">Trusted</button>

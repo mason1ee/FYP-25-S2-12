@@ -841,3 +841,32 @@ window.addEventListener("unload", () => {
     console.log("Cleaned up activeScanTabId on unload.");
   });
 });
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const splash = document.getElementById("splash-screen");
+
+  // Get the active tab ID
+  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) {
+    splash.remove(); // fallback: no tab info
+    return;
+  }
+
+  const tabKey = `splashShown-${tab.id}`;
+
+  chrome.storage.local.get(tabKey, (result) => {
+    if (result[tabKey]) {
+      splash.remove(); // already shown on this tab
+    } else {
+      // Mark as shown for this tab
+      chrome.storage.local.set({ [tabKey]: true }, () => {
+        // Show splash for 1s, then fade out
+        setTimeout(() => {
+          splash.style.opacity = "0";
+          setTimeout(() => splash.remove(), 400);
+        }, 1000);
+      });
+    }
+  });
+});
+
