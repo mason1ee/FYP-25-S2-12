@@ -188,7 +188,7 @@ async function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.remove("na");
 
       if (classificationBtn) {
-        classificationBtn.style.display = "inline-block";
+        classificationBtn.style.display = "none";
       }
     });
   } catch (err) {
@@ -794,7 +794,7 @@ function startScan() {
                 };
                 
 
-                classificationBtn.style.display = "inline-block";
+                classificationBtn.style.display = "none";
 
                 resetScanButton();
                 chrome.runtime.onMessage.removeListener(onScanResult);
@@ -809,6 +809,33 @@ function startScan() {
     });
   });
 }
+
+// Auto-classify based on severity score
+chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, ({ hostname }) => {
+  if (!hostname) return;
+
+  chrome.storage.local.get(["whitelist", "blacklist"], ({ whitelist = [], blacklist = [] }) => {
+    const inWhitelist = whitelist.includes(hostname);
+    const inBlacklist = blacklist.includes(hostname);
+
+    // Remove from both first (prevent duplicates or wrong list)
+    if (inWhitelist || inBlacklist) {
+      whitelist = whitelist.filter(site => site !== hostname);
+      blacklist = blacklist.filter(site => site !== hostname);
+    }
+
+    // Add to correct list
+    if (totalSeverityScore >= 7) {
+      blacklist.push(hostname);
+    } else if (totalSeverityScore < 3) {
+      blacklist.push(hostname);
+    } else {
+      whitelist.push(hostname);
+    }
+
+    chrome.storage.local.set({ whitelist, blacklist });
+  });
+});
 
 function placeCreditsBanner() {
   const banner = document.getElementById('credits-banner');
