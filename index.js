@@ -1,292 +1,872 @@
 import { getActiveHttpTab } from "./background.js";
-
-// UI Element bindings
+const popoutButton = document.getElementById("popout-btn");
+const darkModeToggle = document.getElementById("dark-mode-toggle");
 const scanButton = document.getElementById("scan-button");
 const progressBar = document.getElementById("progress-bar");
+const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
 const resultText = document.getElementById("scan-result");
 const downloadBtn = document.getElementById("download-log");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
 const classificationBtn = document.getElementById("classification-buttons");
-const popoutButton = document.getElementById("popout-btn");
-
 const scanTabBtn = document.getElementById("scan-tab-btn");
 const settingsTabBtn = document.getElementById("settings-tab-btn");
-const sitesTabBtn = document.getElementById("sites-tab-btn");
-
 const scanTab = document.getElementById("scan-tab");
 const settingsTab = document.getElementById("settings-tab");
+const sitesTabBtn = document.getElementById("sites-tab-btn");
 const sitesSection = document.getElementById("sites-section");
-
 const whitelistTabBtn = document.getElementById("whitelist-tab-btn");
 const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
 const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
-
 const blockerStatusText = document.getElementById("blocker-status-text");
-const darkModeToggle = document.getElementById("dark-mode-toggle");
+scanContainer.style.display = "none";
+
+// Initial load
+document.addEventListener("DOMContentLoaded", () => {
+  placeCreditsBanner();
+  updateUIBasedOnActiveTab();
+  updateCurrentDomain();
+  initializeExtension();
+  setInterval(updateCurrentDomain, 10);
+  
+  const params = new URLSearchParams(window.location.search);
+  const tab = params.get('tab') || 'scan';
+  activateTab(tab);
+});
+
+// Hide popout button if already in a popout window
+if (popoutButton && chrome.windows) {
+  chrome.windows.getCurrent((win) => {
+    win.type === "popup" ? popoutButton.style.display = "none" : popoutButton.style.display = "inline-block";
+  });
+}
+
+// Handle popout
+if (popoutButton) {
+  popoutButton.addEventListener("click", async () => {
+    try {
+      // Step 1: Determine which extension tab is active
+      const activeTabBtn = document.querySelector('.tab-nav .nav-tab.active');
+      let tab = 'scan'; // default
+
+      if (activeTabBtn) {
+        const id = activeTabBtn.id;
+        if (id.includes('settings')) tab = 'settings';
+        else if (id.includes('sites')) tab = 'sites';
+      }
+
+      // Step 2: Try to get the active HTTP tab (non-critical)
+      try {
+        let activeTab = await getActiveHttpTab();
+
+        if (!activeTab) {
+          const windows = await new Promise((resolve, reject) => {
+            chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (wins) => {
+              if (chrome.runtime.lastError) return reject(chrome.runtime.lastError);
+              resolve(wins);
+            });
+          });
+
+          for (const win of windows) {
+            activeTab = win.tabs.find(tab => tab.active && tab.url?.startsWith("http"));
+            if (activeTab) break;
+          }
+        }
+
+        // If found, store it
+        if (activeTab) {
+          await new Promise((resolve) =>
+            chrome.storage.local.set({ activeScanTabId: activeTab.id }, resolve)
+          );
+        }
+
+      } catch (tabErr) {
+        console.warn("No active HTTP tab found. Skipping tab ID storage.");
+      }
+
+      // Step 3: Open the popup window regardless
+      chrome.windows.create(
+        {
+          url: chrome.runtime.getURL(`index.html?tab=${tab}`),
+          type: "popup",
+          width: 350,
+          height: 550
+        },
+        () => {
+          window.close(); // Close original popup
+        }
+      );
+
+    } catch (err) {
+      console.error("Error during popout process:", err);
+    }
+  });
+}
+
+function initializeExtension() {
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === "complete" && tab.active) {
+      updateUIBasedOnActiveTab();
+    }
+    if (tab.active && changeInfo.url) {
+      updateUIBasedOnActiveTab();
+    }
+  });
+
+  chrome.tabs.onActivated.addListener(() => {
+    updateUIBasedOnActiveTab();
+  });
+
+  chrome.windows.onFocusChanged.addListener(() => {
+    updateUIBasedOnActiveTab();
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
+      updateUIBasedOnActiveTab();
+    }
+  });
+
+  chrome.storage.local.get("darkMode", ({ darkMode }) => {
+    const isDarkMode = Boolean(darkMode);
+    const root = document.documentElement;
+    root.classList.toggle("dark-mode", isDarkMode);
+    darkModeToggle.checked = isDarkMode;
+    localStorage.setItem("darkMode", isDarkMode);
+  });
+}
+
+function activateTab(tabName) {
+  // Hide all sections
+  document.querySelectorAll('.section, #scan-tab').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+
+  // Show selected tab
+  switch (tabName) {
+    case 'settings':
+      document.getElementById('settings-tab').style.display = 'block';
+      document.getElementById('settings-tab-btn').classList.add('active');
+      break;
+    case 'sites':
+      document.getElementById('sites-section').style.display = 'block';
+      document.getElementById('sites-tab-btn').classList.add('active');
+      break;
+    default:
+      document.getElementById('scan-tab').style.display = 'block';
+      document.getElementById('scan-tab-btn').classList.add('active');
+  }
+}
+
+async function updateUIBasedOnActiveTab() {
+  try {
+    resetScanContainer();
+    const activeTab = await getActiveHttpTab();
+
+    if (!activeTab || !activeTab.url) {
+      // Set status to "Not Applicable"
+      blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
+      blockerStatusText.classList.remove("active", "inactive");
+      
+      if (classificationBtn) {
+        classificationBtn.style.display = "none";
+      }
+
+      return;
+    }
+
+    const hostname = new URL(activeTab.url).hostname;
+
+    chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
+      const { blacklist, jsBlockStates } = data;
+      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
+
+      blockerStatusText.innerText = isBlocked ? "ACTIVE" : "INACTIVE";
+      blockerStatusText.classList.toggle("active", isBlocked);
+      blockerStatusText.classList.toggle("inactive", !isBlocked);
+      blockerStatusText.classList.remove("na");
+
+      if (classificationBtn) {
+        classificationBtn.style.display = "inline-block";
+      }
+    });
+  } catch (err) {
+    console.error("Failed to get active tab: ", err);
+  }
+  
+}
+
+async function updateCurrentDomain() {
+  try {
+    const activeTab = await getActiveHttpTab();
+    const domainText = document.getElementById("current-domain");
+
+    if (activeTab && activeTab.url) {
+      try {
+        scanButton.style.display = "inline-block";
+        const hostname = new URL(activeTab.url).hostname;
+        domainText.textContent = `Current Domain: ${hostname}`;
+      } catch (e) {
+        domainText.textContent = "Invalid URL.";
+      }
+    } else {
+      document.getElementById("scan-instruction").style.display = "none";
+      scanButton.style.display = "none";
+      domainText.textContent = "No active website detected.";
+    }
+  } catch (err) {
+    console.log("Failed to get active tab: ", err);
+  }
+}
+
+document.getElementById("alert-close").addEventListener("click", () => {
+  document.getElementById("custom-alert").classList.add("hidden");
+});
+
+scanButton.addEventListener("click", startScan);
+
+scanTabBtn.addEventListener("click", () => {
+  scanTab.style.display = "block";
+  settingsTab.style.display = "none";
+  sitesSection.style.display = "none";
+  scanTabBtn.classList.add("active");
+  settingsTabBtn.classList.remove("active");
+  sitesTabBtn.classList.remove("active");
+});
+
+settingsTabBtn.addEventListener("click", () => {
+  scanTab.style.display = "none";
+  settingsTab.style.display = "block";
+  sitesSection.style.display = "none";
+  settingsTabBtn.classList.add("active");
+  scanTabBtn.classList.remove("active");
+  sitesTabBtn.classList.remove("active");
+});
+
+sitesTabBtn.addEventListener("click", () => {
+  scanTab.style.display = "none";
+  settingsTab.style.display = "none";
+  sitesSection.style.display = "block";
+  scanTabBtn.classList.remove("active");
+  settingsTabBtn.classList.remove("active");
+  whitelistTab.style.display = "block";
+  blacklistTab.style.display = "none";
+  whitelistTabBtn.classList.add("active");
+  blacklistTabBtn.classList.remove("active");
+  sitesTabBtn.classList.add("active");
+});
+
+darkModeToggle.addEventListener("change", () => {
+  const enabled = darkModeToggle.checked;
+  const root = document.documentElement;
+
+  // Enable transitions only *after* the user toggles
+  root.classList.add("enable-transitions");
+  root.classList.toggle("dark-mode", enabled);
+
+  chrome.storage.local.set({ darkMode: enabled });
+  localStorage.setItem("darkMode", enabled);
+
+  applyDarkModeStylesToTable();
+});
+
+/* Website list Tab Navigation */
+whitelistTabBtn.addEventListener("click", () => {
+  whitelistTab.style.display = "block";
+  blacklistTab.style.display = "none";
+  whitelistTabBtn.classList.add("active");
+  blacklistTabBtn.classList.remove("active");
+});
+
+blacklistTabBtn.addEventListener("click", () => {
+  whitelistTab.style.display = "none";
+  blacklistTab.style.display = "block";
+  whitelistTabBtn.classList.remove("active");
+  blacklistTabBtn.classList.add("active");
+});
+
+function resetScanButton() {
+  isScanning = false;
+  scanButton.disabled = false;
+  scanButton.innerHTML = " Start Scan";
+  scanButton.style.opacity = 1;
+  scanButton.style.cursor = "pointer";
+}
+
+function getTabIdForScanning(callback) {
+  chrome.storage.local.get("activeScanTabId", (data) => {
+    const savedTabId = data.activeScanTabId;
+
+    if (savedTabId) {
+      chrome.tabs.get(savedTabId, (tab) => {
+        if (isValidTab(tab)) {
+          callback(savedTabId);
+          setTimeout(() => chrome.storage.local.remove("activeScanTabId"), 1000);
+        } else {
+          console.warn("Saved tab is invalid or restricted:", tab?.url);
+          chrome.storage.local.remove("activeScanTabId");
+          fallbackToActiveTab(callback);
+        }
+      });
+    } else {
+      fallbackToActiveTab(callback);
+    }
+  });
+}
+
+async function fallbackToActiveTab(callback) {
+  try{
+    let tab = await getActiveHttpTab();
+
+    if (tab) {
+      callback(tab.id);
+    } else {
+      // Fallback: search all windows
+      chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }, (windows) => {
+        for (const win of windows) {
+          tab = win.tabs.find(tab => tab.active && isValidTab(tab));
+          if (tab) {
+            callback(tab.id);
+            return;
+          }
+        }
+
+        console.error("No valid active tab found.");
+        callback(null);
+      });
+    }
+  } catch (err) {
+    console.log("Error getting active tab:", err);
+  }
+}
+
+function isValidTab(tab) {
+  return tab?.url &&
+    !tab.url.startsWith("chrome-extension://") &&
+    !tab.url.startsWith("chrome://") &&
+    !tab.url.startsWith("edge://") &&
+    !tab.url.startsWith("devtools://");
+}
+
+function applyDarkModeStylesToTable() {
+  const isDark = document.body.classList.contains("dark-mode");
+
+  const inlineCell = document.getElementById("inline-count-cell");
+  const externalCell = document.getElementById("external-count-cell");
+
+  if (inlineCell && externalCell) {
+    // Style the data cells
+    inlineCell.style.backgroundColor = isDark ? "#662222" : "#ffcccc";
+    inlineCell.style.color = isDark ? "#ffffff" : "#000000";
+
+    externalCell.style.backgroundColor = isDark ? "#226622" : "#ccffcc";
+    externalCell.style.color = isDark ? "#ffffff" : "#000000";
+  }
+
+  // Style the entire script summary table, if it exists
+  const scriptSummary = document.getElementById("script-summary");
+  if (scriptSummary) {
+    scriptSummary.style.border = "1px solid " + (isDark ? "#888" : "#ccc");
+
+    const ths = scriptSummary.querySelectorAll("th");
+    ths.forEach((th) => {
+      th.style.backgroundColor = isDark ? "#444" : "#f0f0f0";
+      th.style.color = isDark ? "#ffffff" : "#000000";
+    });
+
+    const tds = scriptSummary.querySelectorAll("td");
+    tds.forEach((td) => {
+      td.style.border = "1px solid " + (isDark ? "#666" : "#ccc");
+    });
+  }
+}
 
 let interval = null;
 let onScanResult = null;
 let isScanning = false;
-let allThreats = [];
-let totalSeverityScore = 0;
-function resetScanButton() {
-  isScanning = false;
+
+function resetScanContainer() {
+  // Hide scan container UI
+  scanContainer.style.display = "none";
+
+  // Reset progress bar and texts
+  progressBar.style.width = "0%";
+  resultText.textContent = "";
+  vulnCountText.textContent = "";
+  statusText.textContent = "";
+  
+  // Enable scan button and reset text
   scanButton.disabled = false;
   scanButton.innerHTML = "Start Scan";
   scanButton.style.opacity = 1;
   scanButton.style.cursor = "pointer";
+
+  // Hide download and classification buttons if visible
+  downloadBtn.style.display = "none";
+  classificationBtn.style.display = "none";
+
+  // Clear any intervals and listeners
+  if (interval) clearInterval(interval);
+  if (onScanResult) {
+    chrome.runtime.onMessage.removeListener(onScanResult);
+    onScanResult = null;
+  }
+
+  // Show scan instructions again
+  document.getElementById("scan-instruction").style.display = "block";
+
+  // Reset scanning flag
+  isScanning = false;
+}
+
+let allThreats = [];
+let totalSeverityScore = 0;
+
+async function printDomainScore() {
+  let currentTab = await getActiveHttpTab();
+  let url = new URL(currentTab.url)
+
+  console.log(url.hostname + "'s Total Vulnerabilities: " + allThreats.length);
+  console.log(url.hostname + "'s Score: " + totalSeverityScore);
 }
 
 function startScan() {
   if (isScanning) return;
   isScanning = true;
 
+  document.getElementById("scan-instruction").style.display = "none";
+
   scanContainer.style.display = "block";
-  resultText.textContent = "";
-  vulnCountText.textContent = "";
-  statusText.textContent = "Scanning in progress...";
+  scanButton.disabled = true;
+  scanButton.innerHTML = `<span class="spinner"></span> Scanning...`;
+  scanButton.style.opacity = 0.7;
+  scanButton.style.cursor = "not-allowed";
+
   progressBar.style.width = "0%";
-  downloadBtn.style.display = "none";
-  classificationBtn.style.display = "none";
+  resultText.textContent = "";
+  vulnCountText.textContent = "";  // Clear vuln count on new scan
+  statusText.textContent = "Scanning in Progress...";  // Show scanning status
 
-  // Reset data
-  allThreats = [];
-  totalSeverityScore = 0;
+  if (interval) clearInterval(interval);
+  if (onScanResult) chrome.runtime.onMessage.removeListener(onScanResult);
 
-  // Animate progress bar
-  const duration = 3000;
-  const intervalTime = 100;
-  let elapsed = 0;
-  const increment = (100 * intervalTime) / duration;
+  const scanDuration = 3000;
+  const updateInterval = 100;
+  let timeElapsed = 0;
+  let progress = 0;
+  const progressStep = (100 * updateInterval) / scanDuration;
 
   interval = setInterval(() => {
-    elapsed += intervalTime;
-    progressBar.style.width = `${Math.min((elapsed / duration) * 100, 100)}%`;
-    if (elapsed >= duration) clearInterval(interval);
-  }, intervalTime);
+    timeElapsed += updateInterval;
+    progress = Math.min(progress + progressStep, 100);
+    progressBar.style.width = `${progress}%`;
+    if (progress >= 100) clearInterval(interval);
+  }, updateInterval);
 
-  // Start scan in content script
   getTabIdForScanning((tabId) => {
     if (!tabId) {
-      resetScan("No valid tab found.");
+      clearInterval(interval);
+      resultText.textContent = "Cannot scan this page. Restricted or unsupported URL.";
+      statusText.textContent = "";
+      console.error("Cannot scan this page. Restricted or unsupported URL.");
+      resetScanButton();
+      progressContainer.style.display = "none";
       return;
     }
 
-    chrome.scripting.executeScript({
-      target: { tabId },
-      files: ["libs/acorn.min.js", "utils/alerts.js", "content.js"]
-    }, () => {
-      if (chrome.runtime.lastError) {
-        resetScan("Failed to inject content script.");
+    chrome.tabs.get(tabId, (tab) => {
+      if (
+        chrome.runtime.lastError ||
+        !tab ||
+        !tab.url ||
+        tab.url.startsWith("chrome://") ||
+        tab.url.startsWith("chrome-extension://") ||
+        tab.url.startsWith("edge://") ||
+        tab.url.startsWith("devtools://")
+      ) {
+        clearInterval(interval);
+        resultText.textContent = "Cannot scan this page. Restricted or unsupported URL.";
+        statusText.textContent = "";
+        resetScanButton();
         return;
       }
 
-      chrome.tabs.sendMessage(tabId, { action: "startScan" }, (response) => {
-        if (!response?.started || chrome.runtime.lastError) {
-          resetScan("Content script not available on this page.");
+      chrome.scripting.executeScript({
+        target: { tabId },
+        files: ["libs/acorn.min.js", "utils/alerts.js" ,"content.js"]
+      }, () => {
+        if (chrome.runtime.lastError) {
+          clearInterval(interval);
+          resultText.textContent = "Failed to inject content script. This page may block script injection.";
+          statusText.textContent = "";
+          resetScanButton();
           return;
         }
 
-        // Handle result from content.js
-        onScanResult = function (message) {
-          if (message.type === "page-analysis-result") {
+        chrome.tabs.sendMessage(tabId, { action: "startScan" }, (response) => {
+          if (chrome.runtime.lastError || !response?.started) {
             clearInterval(interval);
-            progressBar.style.width = "100%";
+            resultText.textContent = "Content script not available on this page.";
+            statusText.textContent = "";
+            resetScanButton();
+            return;
+          }
 
-            const contentThreats = message.threats || [];
-            const protocol = message.protocol || "";
+          onScanResult = function (message, sender) {
+            if (message.type === "page-analysis-result") {
+              clearInterval(interval);
+              progressBar.style.width = `100%`;
+              statusText.textContent = "Scan Completed!";
 
-            chrome.runtime.sendMessage({ action: "getSecurityHeaders" }, (res) => {
-              const headerThreats = [];
-              const headers = res?.headers || {};
+              const contentThreats = message.threats || [];
 
-              if (!headers["content-security-policy"]) headerThreats.push("Missing Content-Security-Policy");
-              if (!headers["x-content-type-options"]) headerThreats.push("Missing X-Content-Type-Options");
-              if (!headers["x-frame-options"]) headerThreats.push("Missing X-Frame-Options");
-              if (!headers["strict-transport-security"]) headerThreats.push("Missing Strict-Transport-Security");
+              const hasInline = contentThreats.some(threat => threat.type === "inline");
 
-              if (protocol !== "https:") headerThreats.push("Page is not served over HTTPS");
+              // Filter out inline threats for separate handling
+              const filteredContentThreats = contentThreats.filter(threat => threat.type !== "inline");
 
-              // Combine and classify
-              allThreats = [...contentThreats, ...headerThreats];
-
-              const severityScores = {
-                "Missing Content-Security-Policy": 5,
-                "Missing X-Content-Type-Options": 3,
-                "Missing X-Frame-Options": 2,
-                "Missing Strict-Transport-Security": 5,
-                "Page is not served over HTTPS": 10,
-              };
-
-              totalSeverityScore = 0;
-
-              allThreats.forEach(th => {
-                if (typeof th === "string") {
-                  totalSeverityScore += severityScores[th] || 1;
-                } else if (th?.type) {
-                  totalSeverityScore += severityScores[th.type] || 2;
-                }
-              });
-
-              let verdict = "";
-              let color = "";
-              if (totalSeverityScore >= 7) {
-                verdict = "Website is insecure!";
-                color = "red";
-              } else if (totalSeverityScore >= 3) {
-                verdict = "Website has some warnings.";
-                color = "orange";
-              } else {
-                verdict = "Website appears secure.";
-                color = "green";
+              if (hasInline) {
+                filteredContentThreats.push({ type: "inline", description: "Inline threat detected" });
               }
 
-              resultText.textContent = verdict;
-              resultText.style.color = color;
-              vulnCountText.textContent = `${allThreats.length} vulnerabilities detected`;
+              const protocol = message.protocol || "";
 
-              downloadBtn.style.display = "inline-block";
-              classificationBtn.style.display = "inline-block";
-              resetScanButton();
+              chrome.runtime.sendMessage({ action: "getSecurityHeaders" }, (res) => {
+                const headers = res?.headers || {};
+                const headerThreats = [];
 
-              chrome.runtime.onMessage.removeListener(onScanResult);
-              onScanResult = null;
-            });
-          }
-        };
+                // Define severity scores for header issues and protocol issues
+                const severityScores = {
+                  "Missing Content-Security-Policy": 5,
+                  "Missing Strict-Transport-Security": 5,
+                  "Missing X-Content-Type-Options": 3,
+                  "Missing X-Frame-Options": 2,
+                  "Page is not served over HTTPS": 10,
+                  "inline": 3,
+                };
 
-        chrome.runtime.onMessage.addListener(onScanResult);
-      });
-    });
-  });
-}
+                if (!headers["content-security-policy"])
+                  headerThreats.push("Missing Content-Security-Policy");
+                if (!headers["x-content-type-options"])
+                  headerThreats.push("Missing X-Content-Type-Options");
+                if (!headers["x-frame-options"])
+                  headerThreats.push("Missing X-Frame-Options");
+                if (!headers["strict-transport-security"])
+                  headerThreats.push("Missing Strict-Transport-Security");
 
-function resetScan(errorMessage = "") {
-  clearInterval(interval);
-  progressBar.style.width = "0%";
-  if (errorMessage) resultText.textContent = errorMessage;
-  statusText.textContent = "";
-  resetScanButton();
-  downloadBtn.style.display = "none";
-  classificationBtn.style.display = "none";
-  chrome.runtime.onMessage.removeListener(onScanResult);
-  onScanResult = null;
-}
-downloadBtn.onclick = () => {
-  chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
-    chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
-      if (!response || response.error) {
-        showCustomAlert(response?.error || "Unable to retrieve tab information.", 5000);
-        return;
-      }
+                if (protocol !== "https:") {
+                  headerThreats.push("Page is not served over HTTPS");
+                }
 
-      const { hostname, tabId, url } = response;
-      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
-      const jsStatus = isBlocked ? "JS Blocker: ACTIVE" : "JS Blocker: INACTIVE";
+                // Combine all threats (headers + content)
+                allThreats = [...filteredContentThreats, ...headerThreats];
 
-      const timestamp = new Date().toLocaleString("en-GB", {
-        year: "numeric", month: "2-digit", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", second: "2-digit",
-        hour12: false, timeZone: "Asia/Singapore"
-      });
+                // Calculate total severity score
+                allThreats.forEach(threat => {
+                  if (typeof threat === "string") {
+                    totalSeverityScore += severityScores[threat] || 1;
+                  } else if (threat.type) {
+                    totalSeverityScore += severityScores[threat.type] || 1;
+                  }
+                });
 
-      const inlineCount = allThreats.filter(t =>
-        typeof t === "object" && t.scriptIndex?.startsWith("inline-")
-      ).length;
+                // Determine status based on severity score thresholds
+                let statusMessage = "";
+                let statusColor = "";
+                let isSecure = false;
 
-      const externalScripts = allThreats.filter(t =>
-        typeof t === "object" && t.scriptIndex?.startsWith("external-")
-      );
+                printDomainScore();
+                
+                if (totalSeverityScore >= 7) {
+                  statusMessage = "Website is insecure!";
+                  statusColor = "red";
+                  isSecure = false;
+                } else if (totalSeverityScore >= 3) {
+                  statusMessage = "Website has some security warnings.";
+                  statusColor = "orange";
+                  isSecure = true; // Warning but not fully insecure
+                } else {
+                  statusMessage = "Website appears secure.";
+                  statusColor = "green";
+                  isSecure = true;
+                }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
-      let y = 10;
+                resultText.textContent = statusMessage;
+                resultText.style.color = statusColor;
 
-      // Header: Logo
-      const logoUrl = chrome.runtime.getURL("Assets/logo/Webbed128.png");
-      const imgData = await getBase64ImageFromUrl(logoUrl);
-      doc.addImage(imgData, "PNG", 10, y, 48, 48);
-      y += 55;
+                // Show vulnerabilities count if any
+                if (allThreats.length > 0) {
+                  vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
+                } else {
+                  vulnCountText.textContent = "";
+                }
 
-      // Centered title
-      doc.setFontSize(16);
-      const title = "Generated by Webbed | Client-Side Script Security Inspector";
-      const centerX = (doc.internal.pageSize.getWidth() - doc.getTextWidth(title)) / 2;
-      doc.text(title, centerX, y);
-      y += 10;
+                // Continue with existing logic for displaying detailed threats, download button etc.
+                chrome.tabs.sendMessage(tabId, { action: "getContentThreats" }, (res) => {
+                  const threats = res?.threats || [];
+                  applyDarkModeStylesToTable();
+                });
 
-      doc.setFontSize(12);
-      doc.setTextColor(0);
-      const info = [
-        `FYP-25-S2-12`,
-        `Scan Timestamp: ${timestamp}`,
-        `Scanned URL: ${url}`,
-        `Protocol: ${new URL(url).protocol}`,
-        `${jsStatus}`,
-        `Inline Scripts: ${inlineCount}`,
-        `External Scripts: ${externalScripts.length}`,
-        `Total Threats Detected: ${allThreats.length}`,
-        `Total Severity Score: ${totalSeverityScore}`
-      ];
-      info.forEach(line => {
-        doc.text(line, 10, y);
-        y += 7;
-      });
+                downloadBtn.style.display = "inline-block";
+                downloadBtn.onclick = () => {
+                  chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
+                    chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
+                      if (!response || response.error) {
+                        showCustomAlert(response?.error || "Unable to retrieve tab information.", 5000);
+                        return;
+                      }
 
-      y += 3;
-      doc.setFontSize(13);
-      doc.setTextColor(20, 20, 150);
-      doc.text("🔍 Threat Breakdown:", 10, y);
-      y += 8;
+                      const { hostname, tabId, url } = response;
 
-      const maxY = doc.internal.pageSize.getHeight() - 15;
+                      const currentTab = { id: tabId, url };
 
-      const wrapLines = (text) => doc.splitTextToSize(text, doc.internal.pageSize.getWidth() - 20);
+                      const options = {
+                        timeZone: "Asia/Singapore",
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        hour12: false,
+                      };
+                      const formatter = new Intl.DateTimeFormat("en-GB", options);
+                      const timestamp = formatter.format(new Date());
 
-      allThreats.forEach((threat, index) => {
-        let display = "";
+                      // Count inline vs external entries
+                      const inlineCount = contentThreats.filter(
+                        th =>
+                          (typeof th === "string" && th.includes("inline-")) ||
+                          (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
+                      ).length;
 
-        if (typeof threat === "string") {
-          display = `• ${threat}`;
-        } else {
-          const id = threat.scriptIndex || "unknown";
-          const src = threat.url || "inline";
-          const err = threat.error ? ` ⚠️ ${threat.error}` : "";
-          display = `• [${id}] ${src}${err}`;
-        }
+                      const externalScriptsSet = new Set();
 
-        const lines = wrapLines(display);
-        lines.forEach(line => {
-          if (y > maxY) {
-            doc.addPage();
-            y = 10;
-          }
-          doc.setTextColor(0, 0, 0);
-          doc.text(line, 10, y);
-          y += 6;
+                      //Count external script
+                      contentThreats.forEach(th => {
+                        if (typeof th === "object" && th.scriptIndex?.startsWith("external-")) {
+                          externalScriptsSet.add(th.scriptIndex);
+                        } else if (typeof th === "string") {
+                          const match = th.match(/external-\d+/);
+                          if (match) externalScriptsSet.add(match[0]);
+                        }
+                      });
+
+                      const externalCount = externalScriptsSet.size;
+
+                      // Initialize jsPDF
+                      const { jsPDF } = window.jspdf;
+                      const doc = new jsPDF();
+                      let y = 10;
+                      
+                      // Load logo
+                      const imgUrl = chrome.runtime.getURL("Assets/logo/Webbed128.png");
+                      const imgData = await getBase64ImageFromUrl(imgUrl);
+                      doc.addImage(imgData, "PNG", 10, y, 48, 48);
+                      y += 58;
+
+                      // Centered title
+                      const pageWidth = doc.internal.pageSize.getWidth();
+
+                      doc.setFontSize(18);
+                      const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
+                      const titleWidth = doc.getTextWidth(title);
+                      doc.text(title, (pageWidth - titleWidth) / 2, y);
+                      y += 10;
+
+                      doc.setFontSize(18);
+                      const subheader = "    FYP-25-S2-12    ";
+                      const subheaderWidth = doc.getTextWidth(subheader);
+                      doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
+                      y += 12;
+
+                      // Summary info
+                      const protocol = new URL(currentTab.url).protocol;
+
+                      var message = isSecure ? "appears secure" : "is insecure!";
+                      var color = isSecure ? [0, 128, 0] : [255, 0, 0];
+
+                      doc.setTextColor(...color);
+                      doc.text(`Website ${message}`, 10, y);
+                      y += 10;
+
+                      doc.setTextColor(0, 0, 0);
+
+                      var jsActive = (hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname)) ? "JS Blocker Active" : "JS Blocker disabled";
+
+                      const infoLines = [
+                        `Report for: ${currentTab.url}`,
+                        `Scan Timestamp: ${timestamp}`,
+                        `${jsActive}`,
+                        `Protocol: ${protocol}`,
+                        `${allThreats.length} vulnerabilities detected`,
+                        `Script Summary: ${inlineCount} inline and ${externalCount} external scripts found.`,
+                      ];
+
+                      infoLines.forEach((line) => {
+                        const split = doc.splitTextToSize(line, pageWidth - 20);
+                        split.forEach((part) => {
+                          doc.text(part, 10, y);
+                          y += 10;
+                        });
+                      });
+
+                      y += 5;
+
+                      // Threat logs
+                      let log = `Threats:\n`;
+                      let count = 0;
+
+                      headerThreats.forEach((th) => {
+                        let line;
+                        if (typeof th === "string") {
+                          line = th;
+                        } else {
+                          const idx = th.scriptIndex || "unknown";
+                          const url = th.url || "n/a";
+                          const err = th.error ? " - " + th.error : "";
+                          line = `[${idx}] ${url}${err}`;
+                        }
+                        count++;
+                        log += `[${count}] ${line}\n`;
+                      });
+
+                      contentThreats.forEach((th) => {
+                        let line;
+
+                        if (typeof th === "string") {
+                          line = th;
+                        } else {
+                          const idx = th.scriptIndex || "unknown";
+
+                          // Skip inline scripts
+                          if (typeof idx === "string" && idx.startsWith("inline")) {
+                            return;
+                          }
+
+                          const url = th.url || "n/a";
+                          const err = th.error ? " - " + th.error : "";
+                          line = `[${idx}] ${url}${err}`;
+                        }
+
+                        count++;
+                        log += `[${count}] ${line}\n`;
+                      });
+
+                      if (inlineCount > 0) {
+                        count++;
+                        log += `[${count}] Total ${inlineCount} inline scripts\n`;
+                      }
+
+                      doc.setFontSize(11);
+                      const maxLineWidth = pageWidth - 20;
+                      const lines = doc.splitTextToSize(log, maxLineWidth);
+
+                      lines.forEach((line) => {
+                        if (y > doc.internal.pageSize.getHeight() - 10) {
+                          doc.addPage();
+                          y = 10;
+                          doc.setFontSize(11);
+                        }
+                        doc.text(line, 10, y);
+                        y += 6;
+                      });
+
+                      doc.save(`[Webbed]scan-log-${timestamp}.pdf`);
+                    });
+
+                    // Helper function
+                    function getBase64ImageFromUrl(imageUrl) {
+                      return new Promise((resolve, reject) => {
+                        fetch(imageUrl)
+                          .then((response) => response.blob())
+                          .then((blob) => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                          })
+                          .catch(reject);
+                      });
+                    }
+                  });
+                };
+                
+
+                classificationBtn.style.display = "inline-block";
+
+                resetScanButton();
+                chrome.runtime.onMessage.removeListener(onScanResult);
+                onScanResult = null;
+              });
+            }
+          };
+
+          chrome.runtime.onMessage.addListener(onScanResult);
         });
       });
-
-      y += 5;
-      doc.setTextColor(0, 128, 0);
-      doc.setFontSize(11);
-      doc.text("✔ End of Report", 10, y);
-
-      doc.save(`[Webbed]scan-report-${hostname}.pdf`);
     });
   });
-};
-
-function getBase64ImageFromUrl(url) {
-  return new Promise((resolve, reject) => {
-    fetch(url).then((response) => response.blob()).then((blob) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    }).catch(reject);
-  });
 }
+
+function placeCreditsBanner() {
+  const banner = document.getElementById('credits-banner');
+  const scanTab = document.getElementById('scan-tab');
+  const settingsTab = document.getElementById('settings-tab');
+  const sitesSection = document.getElementById('sites-section');
+
+  // Remove from current location if any
+  banner.style.display = 'block';  // Show it
+
+  // Clear duplicates if any
+  [scanTab, settingsTab, sitesSection].forEach(section => {
+    const existing = section.querySelector('#credits-banner');
+    if (existing && existing !== banner) {
+      existing.remove();
+    }
+  });
+
+  // Append a clone or the original to each section that needs it:
+  scanTab.appendChild(banner.cloneNode(true));
+  settingsTab.appendChild(banner.cloneNode(true));
+  sitesSection.appendChild(banner.cloneNode(true));
+
+  // Hide original container if you want to keep it hidden
+  banner.style.display = 'none';
+}
+
+window.addEventListener("unload", () => {
+  chrome.storage.local.remove("activeScanTabId", () => {
+    console.log("Cleaned up activeScanTabId on unload.");
+  });
+});
+
+window.addEventListener("DOMContentLoaded", async () => {
+  const splash = document.getElementById("splash-screen");
+
+  // Get the active tab ID
+  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) {
+    splash.remove(); // fallback: no tab info
+    return;
+  }
+
+  const tabKey = `splashShown-${tab.id}`;
+
+  chrome.storage.local.get(tabKey, (result) => {
+    if (result[tabKey]) {
+      splash.remove(); // already shown on this tab
+    } else {
+      // Mark as shown for this tab
+      chrome.storage.local.set({ [tabKey]: true }, () => {
+        // Show splash for 1s, then fade out
+        setTimeout(() => {
+          splash.style.opacity = "0";
+          setTimeout(() => splash.remove(), 400);
+        }, 1000);
+      });
+    }
+  });
+});
+
