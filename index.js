@@ -1,7 +1,6 @@
 import { getActiveHttpTab } from "./background.js";
 const popoutButton = document.getElementById("popout-btn");
 const darkModeToggle = document.getElementById("dark-mode-toggle");
-const scanButton = document.getElementById("scan-button");
 const progressBar = document.getElementById("progress-bar");
 const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
@@ -30,7 +29,18 @@ document.addEventListener("DOMContentLoaded", () => {
   updateCurrentDomain();
   initializeExtension();
   setInterval(updateCurrentDomain, 10);
-  
+
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab || !tab.url) return;
+
+    if (tab.url.startsWith('http://') || tab.url.startsWith('https://')) {
+      startScan();
+    } else {
+      console.log('Skipping startScan: not a real website:', tab.url);
+    }
+  });
+
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab') || 'scan';
   activateTab(tab);
@@ -105,22 +115,152 @@ if (popoutButton) {
   });
 }
 
+// function initializeExtension() {
+//   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+//     console.log('onUpdated:', { tabId, changeInfo, tab });
+//     if (changeInfo.status === "complete" && tab.active) {
+//       updateUIBasedOnActiveTab();
+//       //startScan();
+//     }
+//     if (tab.active && changeInfo.url) {
+//       console.log("URL changed on active tab, running startScan()");
+//       updateUIBasedOnActiveTab();
+//       //startScan();
+//     }
+//   });
+
+//   chrome.tabs.onActivated.addListener(() => {
+//     updateUIBasedOnActiveTab();
+//     startScan();
+//   });
+
+//   chrome.windows.onFocusChanged.addListener(() => {
+//     updateUIBasedOnActiveTab();
+//     startScan();
+//   });
+
+//   chrome.storage.onChanged.addListener((changes, areaName) => {
+//     if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
+//       updateUIBasedOnActiveTab();
+//     }
+//   });
+
+//   chrome.storage.local.get("darkMode", ({ darkMode }) => {
+//     const isDarkMode = Boolean(darkMode);
+//     const root = document.documentElement;
+//     root.classList.toggle("dark-mode", isDarkMode);
+//     darkModeToggle.checked = isDarkMode;
+//     localStorage.setItem("darkMode", isDarkMode);
+//   });
+// }
+
+// function initializeExtension() {
+//   function handleTabChange() {
+//     updateUIBasedOnActiveTab();
+//     startScan();
+//   }
+
+//   // When tab finishes loading or URL changes
+//   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+//     if ((changeInfo.status === "complete" || changeInfo.url) && tab.active) {
+//       handleTabChange();
+//     }
+//   });
+
+//   // When user switches to a different tab (including pop-out windows)
+//   chrome.tabs.onActivated.addListener(() => {
+//     handleTabChange();
+//   });
+
+//   // Optional: when user switches between windows, re-scan the new active tab
+//   chrome.windows.onFocusChanged.addListener((windowId) => {
+//     if (windowId === chrome.windows.WINDOW_ID_NONE) return; // No window in focus
+//     chrome.tabs.query({ active: true, windowId }, (tabs) => {
+//       if (tabs[0]) {
+//         handleTabChange();
+//       }
+//     });
+//   });
+
+//   // Only update UI if storage changes (no scanning needed here)
+//   chrome.storage.onChanged.addListener((changes, areaName) => {
+//     if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
+//       updateUIBasedOnActiveTab();
+//     }
+//   });
+
+//   // Set dark mode based on saved preference
+//   chrome.storage.local.get("darkMode", ({ darkMode }) => {
+//     const isDarkMode = Boolean(darkMode);
+//     const root = document.documentElement;
+//     root.classList.toggle("dark-mode", isDarkMode);
+//     darkModeToggle.checked = isDarkMode;
+//     localStorage.setItem("darkMode", isDarkMode);
+//   });
+// }
+
 function initializeExtension() {
+  let lastTabId = null;
+  let lastUrl = null;
+
+  function updateStateAndMaybeScan(tab) {
+    if (!tab || !tab.url) {
+      console.log("No tab or URL yet:", tab);
+      return;
+    }
+
+    const url = tab.url;
+    const isValidUrl = url.startsWith("http://") || url.startsWith("https://");
+
+    const tabChanged = tab.id !== lastTabId;
+    const urlChanged = url !== lastUrl;
+
+    console.log({
+      tabId: tab.id,
+      lastTabId,
+      url,
+      lastUrl,
+      tabChanged,
+      urlChanged,
+      isValidUrl,
+    });
+
+    lastTabId = tab.id;
+    if (isValidUrl) lastUrl = url;
+
+    if (!isValidUrl) {
+      console.log("⛔ Not a real website, skipping scan:", url);
+      return;
+    }
+
+    if (tabChanged || urlChanged) {
+      console.log("🟢 Running startScan on tab:", tab.id, "URL:", url);
+      updateUIBasedOnActiveTab();
+      startScan();
+    } else {
+      console.log("🟡 Skipping startScan, no tab or URL change");
+    }
+  }
+
+  chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+    chrome.tabs.get(tabId, (tab) => {
+      updateStateAndMaybeScan(tab);
+    });
+  });
+
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.status === "complete" && tab.active) {
-      updateUIBasedOnActiveTab();
-    }
-    if (tab.active && changeInfo.url) {
-      updateUIBasedOnActiveTab();
+      updateStateAndMaybeScan(tab);
     }
   });
 
-  chrome.tabs.onActivated.addListener(() => {
-    updateUIBasedOnActiveTab();
-  });
-
-  chrome.windows.onFocusChanged.addListener(() => {
-    updateUIBasedOnActiveTab();
+  chrome.windows.onFocusChanged.addListener((windowId) => {
+    if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+    chrome.windows.get(windowId, { populate: true }, (window) => {
+      if (!window || !window.tabs) return;
+      const activeTab = window.tabs.find((t) => t.active);
+      updateStateAndMaybeScan(activeTab);
+    });
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -175,8 +315,9 @@ async function updateUIBasedOnActiveTab() {
 
       return;
     }
-
+    
     const hostname = new URL(activeTab.url).hostname;
+    //startScan();
 
     chrome.storage.local.get({ blacklist: [], jsBlockStates: {} }, (data) => {
       const { blacklist, jsBlockStates } = data;
@@ -201,18 +342,14 @@ async function updateCurrentDomain() {
   try {
     const activeTab = await getActiveHttpTab();
     const domainText = document.getElementById("current-domain");
-
     if (activeTab && activeTab.url) {
       try {
-        scanButton.style.display = "inline-block";
         const hostname = new URL(activeTab.url).hostname;
-        domainText.textContent = `Current Domain: ${hostname}`;
+        domainText.textContent = `${hostname}`;
       } catch (e) {
         domainText.textContent = "Invalid URL.";
       }
     } else {
-      document.getElementById("scan-instruction").style.display = "none";
-      scanButton.style.display = "none";
       domainText.textContent = "No active website detected.";
     }
   } catch (err) {
@@ -223,8 +360,6 @@ async function updateCurrentDomain() {
 document.getElementById("alert-close").addEventListener("click", () => {
   document.getElementById("custom-alert").classList.add("hidden");
 });
-
-scanButton.addEventListener("click", startScan);
 
 scanTabBtn.addEventListener("click", () => {
   scanTab.style.display = "block";
@@ -285,14 +420,6 @@ blacklistTabBtn.addEventListener("click", () => {
   whitelistTabBtn.classList.remove("active");
   blacklistTabBtn.classList.add("active");
 });
-
-function resetScanButton() {
-  isScanning = false;
-  scanButton.disabled = false;
-  scanButton.innerHTML = " Start Scan";
-  scanButton.style.opacity = 1;
-  scanButton.style.cursor = "pointer";
-}
 
 function getTabIdForScanning(callback) {
   chrome.storage.local.get("activeScanTabId", (data) => {
@@ -395,12 +522,6 @@ function resetScanContainer() {
   resultText.textContent = "";
   vulnCountText.textContent = "";
   statusText.textContent = "";
-  
-  // Enable scan button and reset text
-  scanButton.disabled = false;
-  scanButton.innerHTML = "Start Scan";
-  scanButton.style.opacity = 1;
-  scanButton.style.cursor = "pointer";
 
   // Hide download and classification buttons if visible
   downloadBtn.style.display = "none";
@@ -413,9 +534,6 @@ function resetScanContainer() {
     onScanResult = null;
   }
 
-  // Show scan instructions again
-  document.getElementById("scan-instruction").style.display = "block";
-
   // Reset scanning flag
   isScanning = false;
 }
@@ -425,7 +543,13 @@ let totalSeverityScore = 0;
 
 async function printDomainScore() {
   let currentTab = await getActiveHttpTab();
-  let url = new URL(currentTab.url)
+  let url = "";
+
+  try {
+    url = new URL(currentTab.url)
+  } catch (e) {
+    console.log("Error: " + e);
+  }
 
   console.log(url.hostname + "'s Total Vulnerabilities: " + allThreats.length);
   console.log(url.hostname + "'s Score: " + totalSeverityScore);
@@ -435,13 +559,7 @@ function startScan() {
   if (isScanning) return;
   isScanning = true;
 
-  document.getElementById("scan-instruction").style.display = "none";
-
   scanContainer.style.display = "block";
-  scanButton.disabled = true;
-  scanButton.innerHTML = `<span class="spinner"></span> Scanning...`;
-  scanButton.style.opacity = 0.7;
-  scanButton.style.cursor = "not-allowed";
 
   progressBar.style.width = "0%";
   resultText.textContent = "";
@@ -470,7 +588,6 @@ function startScan() {
       resultText.textContent = "Cannot scan this page. Restricted or unsupported URL.";
       statusText.textContent = "";
       console.error("Cannot scan this page. Restricted or unsupported URL.");
-      resetScanButton();
       progressContainer.style.display = "none";
       return;
     }
@@ -488,7 +605,6 @@ function startScan() {
         clearInterval(interval);
         resultText.textContent = "Cannot scan this page. Restricted or unsupported URL.";
         statusText.textContent = "";
-        resetScanButton();
         return;
       }
 
@@ -500,7 +616,6 @@ function startScan() {
           clearInterval(interval);
           resultText.textContent = "Failed to inject content script. This page may block script injection.";
           statusText.textContent = "";
-          resetScanButton();
           return;
         }
 
@@ -509,7 +624,6 @@ function startScan() {
             clearInterval(interval);
             resultText.textContent = "Content script not available on this page.";
             statusText.textContent = "";
-            resetScanButton();
             return;
           }
 
@@ -796,7 +910,6 @@ function startScan() {
 
                 classificationBtn.style.display = "inline-block";
 
-                resetScanButton();
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
               });
@@ -869,4 +982,3 @@ window.addEventListener("DOMContentLoaded", async () => {
     }
   });
 });
-

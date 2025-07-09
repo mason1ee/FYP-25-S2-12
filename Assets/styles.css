@@ -402,10 +402,21 @@
 
 /* Start of Manually classification */
 
-  .action-button {
+  #whitelistBtn {
     padding: 8px 16px;
     border-radius: 8px;
-    background: #2276bf;
+    background: #66CC66;
+    color: white;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 5px 0;
+  }
+  #blacklistBtn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: red;
     color: white;
     border: none;
     font-size: 13px;
@@ -414,8 +425,12 @@
     margin: 5px 0;
   }
 
-  .action-button:hover {
-    background-color: #003f83;
+  #whitelistBtn:hover {
+    background-color: #66CC66;
+  }
+
+  #blacklistBtn:hover {
+    background-color: red;
   }
 
 /* End of Manually classification */
@@ -437,14 +452,24 @@
     border: 1px solid #666;
   }
 
-  html.dark-mode .action-button {
-    background-color: #2276bf;
+  html.dark-mode #whitelistBtn {
+    background-color: #66CC66;
     color: white;
     border: none;
   }
 
-  html.dark-mode .action-button:hover {
-    background-color: #003f83;
+  html.dark-mode #whitelistBtn:hover {
+    background-color: #66CC66;
+  }
+
+  html.dark-mode #blacklistBtn {
+    background-color: red;
+    color: white;
+    border: none;
+  }
+
+  html.dark-mode #blacklistBtn:hover {
+    background-color: red;
   }
 
   html.dark-mode input,
