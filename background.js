@@ -2,112 +2,9 @@ if (typeof lastSecurityHeaders === "undefined"){
   var lastSecurityHeaders = {};
 }
 
-async function removeAllDynamicRules() {
-  return new Promise((resolve, reject) => {
-    chrome.declarativeNetRequest.getDynamicRules((existingRules) => {
-      const idsToRemove = existingRules.map(rule => rule.id);
-      if (idsToRemove.length === 0) {
-        resolve();
-        return;
-      }
-      chrome.declarativeNetRequest.updateDynamicRules(
-        { removeRuleIds: idsToRemove },
-        () => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
-  });
-}
-
-async function addDynamicRules(rules) {
-  return new Promise((resolve, reject) => {
-    chrome.declarativeNetRequest.updateDynamicRules(
-      { addRules: rules },
-      () => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
-          resolve();
-        }
-      }
-    );
-  });
-}
-
-async function updateDynamicBlacklistRules() {
-  try {
-    await removeAllDynamicRules();
-
-    // Start ID from 10000 to avoid conflicts
-    let nextId = 10000;
-
-    const getNextUniqueId = () => nextId++;
-
-    const data = await new Promise((resolve) => {
-      chrome.storage.local.get({ blacklist: [] }, resolve);
-    });
-
-    if (!Array.isArray(data.blacklist)) return;
-
-    const rules = [];
-
-    for (const domain of data.blacklist) {
-      const urlFilter = `*://${domain}/*`;
-
-      rules.push({
-        id: getNextUniqueId(),
-        priority: 1,
-        action: {
-          type: "modifyHeaders",
-          responseHeaders: [
-            {
-              header: "Content-Security-Policy",
-              operation: "set",
-              value: "script-src 'self' blob:; script-src-elem 'self' blob:; object-src 'none';"
-            }
-          ]
-        },
-        condition: {
-          urlFilter,
-          resourceTypes: ["main_frame"]
-        }
-      });
-
-      rules.push({
-        id: getNextUniqueId(),
-        priority: 1,
-        action: { type: "block" },
-        condition: {
-          urlFilter,
-          resourceTypes: ["script"]
-        }
-      });
-    }
-
-    await addDynamicRules(rules);
-    console.log("✅ Dynamic blacklist rules updated successfully.");
-  } catch (error) {
-    //console.error("❌ Failed to update dynamic blacklist rules:", error.message);
-  }
-}
-
-
-function applyBlockerState() {
-  chrome.storage.local.get('blocked', ({ blocked }) => {
-    if (typeof blocked === 'boolean') {
-      chrome.declarativeNetRequest.updateEnabledRulesets(
-        blocked
-          ? { enableRulesetIds: ['ruleset_1'] }
-          : { disableRulesetIds: ['ruleset_1'] }
-      );
-    }
-  });
-}
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.action.setBadgeText({ text: "" });
+});
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log('Client-side Security Script Inspector extension installed');
@@ -297,6 +194,113 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     });
   }
 });
+
+async function removeAllDynamicRules() {
+  return new Promise((resolve, reject) => {
+    chrome.declarativeNetRequest.getDynamicRules((existingRules) => {
+      const idsToRemove = existingRules.map(rule => rule.id);
+      if (idsToRemove.length === 0) {
+        resolve();
+        return;
+      }
+      chrome.declarativeNetRequest.updateDynamicRules(
+        { removeRuleIds: idsToRemove },
+        () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else {
+            resolve();
+          }
+        }
+      );
+    });
+  });
+}
+
+async function addDynamicRules(rules) {
+  return new Promise((resolve, reject) => {
+    chrome.declarativeNetRequest.updateDynamicRules(
+      { addRules: rules },
+      () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+async function updateDynamicBlacklistRules() {
+  try {
+    await removeAllDynamicRules();
+
+    // Start ID from 10000 to avoid conflicts
+    let nextId = 10000;
+
+    const getNextUniqueId = () => nextId++;
+
+    const data = await new Promise((resolve) => {
+      chrome.storage.local.get({ blacklist: [] }, resolve);
+    });
+
+    if (!Array.isArray(data.blacklist)) return;
+
+    const rules = [];
+
+    for (const domain of data.blacklist) {
+      const urlFilter = `*://${domain}/*`;
+
+      rules.push({
+        id: getNextUniqueId(),
+        priority: 1,
+        action: {
+          type: "modifyHeaders",
+          responseHeaders: [
+            {
+              header: "Content-Security-Policy",
+              operation: "set",
+              value: "script-src 'self' blob:; script-src-elem 'self' blob:; object-src 'none';"
+            }
+          ]
+        },
+        condition: {
+          urlFilter,
+          resourceTypes: ["main_frame"]
+        }
+      });
+
+      rules.push({
+        id: getNextUniqueId(),
+        priority: 1,
+        action: { type: "block" },
+        condition: {
+          urlFilter,
+          resourceTypes: ["script"]
+        }
+      });
+    }
+
+    await addDynamicRules(rules);
+    console.log("✅ Dynamic blacklist rules updated successfully.");
+  } catch (error) {
+    //console.error("❌ Failed to update dynamic blacklist rules:", error.message);
+  }
+}
+
+
+function applyBlockerState() {
+  chrome.storage.local.get('blocked', ({ blocked }) => {
+    if (typeof blocked === 'boolean') {
+      chrome.declarativeNetRequest.updateEnabledRulesets(
+        blocked
+          ? { enableRulesetIds: ['ruleset_1'] }
+          : { disableRulesetIds: ['ruleset_1'] }
+      );
+    }
+  });
+}
 
 export async function getActiveHttpTab() {
   return new Promise((resolve, reject) => {

@@ -41,6 +41,30 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  chrome.storage.local.get('activeScanTabId', ({ activeScanTabId }) => {
+    if (!activeScanTabId) {
+      console.log('Pop-out: No activeScanTabId stored');
+      return;
+    }
+
+    chrome.tabs.get(activeScanTabId, (tab) => {
+      if (chrome.runtime.lastError || !tab || !tab.url) {
+        console.warn('Pop-out: Failed to retrieve tab for scanning');
+        return;
+      }
+
+      const isValid = tab.url.startsWith('http://') || tab.url.startsWith('https://');
+      if (isValid) {
+        console.log('Pop-out: Starting scan directly in pop-out for tab', tab.id);
+        updateUIBasedOnActiveTab?.(); // if defined
+        startScan();
+      } else {
+        console.warn('Pop-out: Tab URL is not valid for scanning:', tab.url);
+      }
+    });
+
+  });
+
   const params = new URLSearchParams(window.location.search);
   const tab = params.get('tab') || 'scan';
   activateTab(tab);
@@ -116,80 +140,75 @@ if (popoutButton) {
 }
 
 // function initializeExtension() {
-//   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-//     console.log('onUpdated:', { tabId, changeInfo, tab });
-//     if (changeInfo.status === "complete" && tab.active) {
-//       updateUIBasedOnActiveTab();
-//       //startScan();
+//   let lastTabId = null;
+//   let lastUrl = null;
+
+//   function updateStateAndMaybeScan(tab) {
+//     if (!tab || !tab.url) {
+//       console.log("No tab or URL yet:", tab);
+//       return;
 //     }
-//     if (tab.active && changeInfo.url) {
-//       console.log("URL changed on active tab, running startScan()");
-//       updateUIBasedOnActiveTab();
-//       //startScan();
+
+//     const url = tab.url;
+//     const isValidUrl = url.startsWith("http://") || url.startsWith("https://");
+
+//     const tabChanged = tab.id !== lastTabId;
+//     const urlChanged = url !== lastUrl;
+
+//     console.log({
+//       tabId: tab.id,
+//       lastTabId,
+//       url,
+//       lastUrl,
+//       tabChanged,
+//       urlChanged,
+//       isValidUrl,
+//     });
+
+//     lastTabId = tab.id;
+//     if (isValidUrl) lastUrl = url;
+
+//     if (!isValidUrl) {
+//       console.log("⛔ Not a real website, skipping scan:", url);
+//       return;
 //     }
-//   });
 
-//   chrome.tabs.onActivated.addListener(() => {
-//     updateUIBasedOnActiveTab();
-//     startScan();
-//   });
-
-//   chrome.windows.onFocusChanged.addListener(() => {
-//     updateUIBasedOnActiveTab();
-//     startScan();
-//   });
-
-//   chrome.storage.onChanged.addListener((changes, areaName) => {
-//     if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
+//     if (tabChanged || urlChanged) {
+//       console.log("🟢 Running startScan on tab:", tab.id, "URL:", url);
 //       updateUIBasedOnActiveTab();
+//       startScan();
+//     } else {
+//       console.log("🟡 Skipping startScan, no tab or URL change");
 //     }
-//   });
-
-//   chrome.storage.local.get("darkMode", ({ darkMode }) => {
-//     const isDarkMode = Boolean(darkMode);
-//     const root = document.documentElement;
-//     root.classList.toggle("dark-mode", isDarkMode);
-//     darkModeToggle.checked = isDarkMode;
-//     localStorage.setItem("darkMode", isDarkMode);
-//   });
-// }
-
-// function initializeExtension() {
-//   function handleTabChange() {
-//     updateUIBasedOnActiveTab();
-//     startScan();
 //   }
 
-//   // When tab finishes loading or URL changes
-//   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-//     if ((changeInfo.status === "complete" || changeInfo.url) && tab.active) {
-//       handleTabChange();
-//     }
-//   });
-
-//   // When user switches to a different tab (including pop-out windows)
-//   chrome.tabs.onActivated.addListener(() => {
-//     handleTabChange();
-//   });
-
-//   // Optional: when user switches between windows, re-scan the new active tab
-//   chrome.windows.onFocusChanged.addListener((windowId) => {
-//     if (windowId === chrome.windows.WINDOW_ID_NONE) return; // No window in focus
-//     chrome.tabs.query({ active: true, windowId }, (tabs) => {
-//       if (tabs[0]) {
-//         handleTabChange();
-//       }
+//   chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
+//     chrome.tabs.get(tabId, (tab) => {
+//       updateStateAndMaybeScan(tab);
 //     });
 //   });
 
-//   // Only update UI if storage changes (no scanning needed here)
+//   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+//     if (changeInfo.status === "complete" && tab.active) {
+//       updateStateAndMaybeScan(tab);
+//     }
+//   });
+
+//   chrome.windows.onFocusChanged.addListener((windowId) => {
+//     if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+//     chrome.windows.get(windowId, { populate: true }, (window) => {
+//       if (!window || !window.tabs) return;
+//       const activeTab = window.tabs.find((t) => t.active);
+//       updateStateAndMaybeScan(activeTab);
+//     });
+//   });
+
 //   chrome.storage.onChanged.addListener((changes, areaName) => {
 //     if (areaName === 'local' && (changes.blacklist || changes.jsBlockStates)) {
 //       updateUIBasedOnActiveTab();
 //     }
 //   });
-
-//   // Set dark mode based on saved preference
+  
 //   chrome.storage.local.get("darkMode", ({ darkMode }) => {
 //     const isDarkMode = Boolean(darkMode);
 //     const root = document.documentElement;
@@ -202,65 +221,65 @@ if (popoutButton) {
 function initializeExtension() {
   let lastTabId = null;
   let lastUrl = null;
+  let debounceTimer = null;
+  const DEBOUNCE_DELAY = 300; // ms
 
-  function updateStateAndMaybeScan(tab) {
-    if (!tab || !tab.url) {
-      console.log("No tab or URL yet:", tab);
-      return;
-    }
-
-    const url = tab.url;
-    const isValidUrl = url.startsWith("http://") || url.startsWith("https://");
-
-    const tabChanged = tab.id !== lastTabId;
-    const urlChanged = url !== lastUrl;
-
-    console.log({
-      tabId: tab.id,
-      lastTabId,
-      url,
-      lastUrl,
-      tabChanged,
-      urlChanged,
-      isValidUrl,
-    });
-
-    lastTabId = tab.id;
-    if (isValidUrl) lastUrl = url;
-
-    if (!isValidUrl) {
-      console.log("⛔ Not a real website, skipping scan:", url);
-      return;
-    }
-
-    if (tabChanged || urlChanged) {
-      console.log("🟢 Running startScan on tab:", tab.id, "URL:", url);
-      updateUIBasedOnActiveTab();
-      startScan();
-    } else {
-      console.log("🟡 Skipping startScan, no tab or URL change");
-    }
+  function isValidUrl(url) {
+    return url && (url.startsWith("http://") || url.startsWith("https://"));
   }
 
-  chrome.tabs.onActivated.addListener(({ tabId, windowId }) => {
-    chrome.tabs.get(tabId, (tab) => {
-      updateStateAndMaybeScan(tab);
-    });
-  });
+  function updateStateAndMaybeScan(tab) {
+    if (!tab || !isValidUrl(tab.url)) {
+      console.log("⛔ Invalid or missing tab:", tab);
+      return;
+    }
 
+    const tabChanged = tab.id !== lastTabId;
+    const urlChanged = tab.url !== lastUrl;
+
+    console.log("Checking tab change:", {
+      tabId: tab.id,
+      lastTabId,
+      url: tab.url,
+      lastUrl,
+      tabChanged,
+      urlChanged
+    });
+
+    if (!tabChanged && !urlChanged) {
+      console.log("🟡 Skipping: No tab or URL change");
+      return;
+    }
+
+    // Debounce any multiple calls within 300ms
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      lastTabId = tab.id;
+      lastUrl = tab.url;
+      console.log("🟢 Debounced startScan for:", tab.url);
+      updateUIBasedOnActiveTab();
+      startScan();
+    }, DEBOUNCE_DELAY);
+  }
+
+  // Helper to get current active tab
+  function checkActiveTabAndScan() {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+      if (tabs.length === 0) return;
+      updateStateAndMaybeScan(tabs[0]);
+    });
+  }
+
+  chrome.tabs.onActivated.addListener(checkActiveTabAndScan);
   chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === "complete" && tab.active) {
+    if (tab.active && changeInfo.status === 'complete') {
       updateStateAndMaybeScan(tab);
     }
   });
 
   chrome.windows.onFocusChanged.addListener((windowId) => {
     if (windowId === chrome.windows.WINDOW_ID_NONE) return;
-    chrome.windows.get(windowId, { populate: true }, (window) => {
-      if (!window || !window.tabs) return;
-      const activeTab = window.tabs.find((t) => t.active);
-      updateStateAndMaybeScan(activeTab);
-    });
+    checkActiveTabAndScan();
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -269,6 +288,10 @@ function initializeExtension() {
     }
   });
 
+  // Initial scan
+  checkActiveTabAndScan();
+
+  // Dark mode setup
   chrome.storage.local.get("darkMode", ({ darkMode }) => {
     const isDarkMode = Boolean(darkMode);
     const root = document.documentElement;
@@ -277,6 +300,43 @@ function initializeExtension() {
     localStorage.setItem("darkMode", isDarkMode);
   });
 }
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'requestStartScan') {
+    const tabId = message.tabId;
+
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError || !tab) {
+        console.warn('Background: Tab not found for scan:', tabId);
+        sendResponse({ success: false, error: 'Tab not found' });
+        return;
+      }
+
+      try {
+        const urlObj = new URL(tab.url);
+        if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+          sendResponse({ success: false, error: 'Invalid URL protocol' });
+          return;
+        }
+      } catch {
+        sendResponse({ success: false, error: 'Malformed URL' });
+        return;
+      }
+
+      // Send message to content script inside the tab to run startScan
+      chrome.tabs.sendMessage(tab.id, { action: 'startScanInTab' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn('Background: Error sending message to tab:', chrome.runtime.lastError.message);
+          sendResponse({ success: false, error: 'Failed to communicate with tab' });
+        } else {
+          sendResponse({ success: true });
+        }
+      });
+    });
+
+    return true;
+  }
+});
 
 function activateTab(tabName) {
   // Hide all sections
@@ -554,6 +614,15 @@ async function printDomainScore() {
   console.log(url.hostname + "'s Total Vulnerabilities: " + allThreats.length);
   console.log(url.hostname + "'s Score: " + totalSeverityScore);
 }
+function setBadge(targetTabId, score, isSecure) {
+  chrome.action.setBadgeText({ text: score.toString(), tabId: targetTabId });
+
+  if (isSecure) {
+    chrome.action.setBadgeBackgroundColor({ color: "#66CC66", tabId: targetTabId });
+  } else {
+    chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: targetTabId });
+  }
+}
 
 function startScan() {
   if (isScanning) return;
@@ -696,14 +765,22 @@ function startScan() {
                   statusMessage = "Website is insecure!";
                   statusColor = "red";
                   isSecure = false;
+                  setBadge(tabId, totalSeverityScore, false);
                 } else if (totalSeverityScore >= 3) {
                   statusMessage = "Website has some security warnings.";
                   statusColor = "orange";
                   isSecure = true; // Warning but not fully insecure
+                  setBadge(tabId, totalSeverityScore, true);
+                } else if (totalSeverityScore == 0) {
+                  statusMessage = "Website appears secure.";
+                  statusColor = "green";
+                  isSecure = true;
+                  setBadge(tabId, "", true);
                 } else {
                   statusMessage = "Website appears secure.";
                   statusColor = "green";
                   isSecure = true;
+                  setBadge(tabId, totalSeverityScore, true);
                 }
 
                 resultText.textContent = statusMessage;

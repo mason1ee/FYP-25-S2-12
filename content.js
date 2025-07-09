@@ -16,6 +16,23 @@ var trustedCDNs = [
   "stackpath.bootstrapcdn.com"
 ];
 
+// For pop out window scan
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'startScanInTab') {
+    console.log('[Content Script] startScanInTab received');
+
+    // Make sure the scan function exists in this context
+    if (typeof startScan === 'function') {
+      updateUIBasedOnActiveTab?.(); // Optional chaining in case not defined
+      startScan();
+      sendResponse({ success: true });
+    } else {
+      console.warn('startScan is not defined in content script');
+      sendResponse({ success: false, error: 'startScan not found' });
+    }
+  }
+});
+
 function isSuspiciousDomain(url) {
   try {
     const parsedUrl = new URL(url);
