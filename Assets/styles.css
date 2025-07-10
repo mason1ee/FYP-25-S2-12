@@ -644,6 +644,7 @@ html.dark-mode .remove-btn {
 /* End of confirm banner */
 
 /* Splash Screen */
+
 #splash-screen {
   position: fixed;
   top: 0;
@@ -671,6 +672,7 @@ html.dark-mode .remove-btn {
   color: #444;
   font-weight: bold;
 }
+
 /* End of Splash Screen */
 
 body, button, input, textarea, select, p, span, h1, h2, h3, h4 {
@@ -699,5 +701,3 @@ h4 {
   font-size: 14px;
   font-weight: 500;
 }
-
-
