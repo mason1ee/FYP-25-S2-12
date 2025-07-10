@@ -625,6 +625,7 @@ function setBadge(targetTabId, score, isSecure) {
 }
 
 function startScan() {
+  totalSeverityScore = 0;
   if (isScanning) return;
   isScanning = true;
 
