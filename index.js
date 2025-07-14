@@ -757,7 +757,8 @@ function startScan() {
                       const filenameSafeTimestamp = timestamp.replace(/[^\d]/g, "_");
 
                       const inlineCount = allThreats.filter(th =>
-                        typeof th === "object" && th.scriptIndex?.startsWith("inline-")
+                        (typeof th === "string" && th.includes("inline-") ||
+                        typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
                       ).length;
 
                       const externalScriptsSet = new Set();
@@ -810,9 +811,12 @@ function startScan() {
                         `Script Summary: ${inlineCount} inline, ${externalCount} external`,
                       ];
 
-                      infoLines.forEach(line => {
-                        doc.text(doc.splitTextToSize(line, pageWidth - 20), 10, y);
-                        y += 10;
+                      infoLines.forEach((line) => {
+                        const split = doc.splitTextToSize(line, pageWidth - 20);
+                        split.forEach((part) => {
+                          doc.text(part, 10, y);
+                          y += 10;
+                        });
                       });
 
                       y += 5;
@@ -830,13 +834,24 @@ function startScan() {
                           line = th;
                         } else {
                           const idx = th.scriptIndex || "unknown";
-                          const url = th.url || "inline";
-                          const err = th.error ? ` - ${th.error}` : "";
+
+                           // Skip inline scripts
+                          if (typeof idx === "string" && idx.startsWith("inline")) {
+                            return;
+                          }
+
+                          const url = th.url || "n/a";
+                          const err = th.error ? " - " + th.error : "";
                           line = `[${idx}] ${url}${err}`;
                         }
                         count++;
                         return `[${count}] ${line}`;
                       });
+
+                      if (inlineCount > 0) {
+                        count++;
+                        lines.push(`[${count}] Total ${inlineCount} inline scripts\n`);
+                      }
 
                       const wrappedLines = doc.splitTextToSize(lines.join("\n"), pageWidth - 20);
                       wrappedLines.forEach(line => {
@@ -935,8 +950,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         // Show splash for 1s, then fade out
         setTimeout(() => {
           splash.style.opacity = "0";
-          setTimeout(() => splash.remove(), 400);
-        }, 1000);
+          setTimeout(() => splash.remove(), 180);
+        }, 500);
       });
     }
   });
