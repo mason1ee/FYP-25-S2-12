@@ -501,10 +501,10 @@
   }
 
   html.dark-mode thead th {
-    background-color: #222f4b;   /* stronger blue for headings */
+    background-color: #4466cc;   /* stronger blue for headings */
     color: #ffffff;
     font-weight: bold;
-    border-bottom: 3px solid #4a90e2;
+    border-bottom: 3px solid #4466cc;
     text-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
   }
 
@@ -514,7 +514,7 @@
 
   html.dark-mode table a,
   html.dark-mode table button {
-    color: #81aaff;
+    color: #4466cc;
   }
 
 html.dark-mode #scan-tab,
@@ -529,6 +529,37 @@ html.dark-mode .remove-btn {
   border: none !important;
   box-shadow: none !important;
   outline: none !important;
+}
+
+html.dark-mode #download-log,
+html.dark-mode .confirm-buttons button,
+html.dark-mode .alert-content button {
+  background-color: #4466cc;
+}
+
+html.dark-mode #reset-lists:hover,
+html.dark-mode #whitelist-sort:hover,
+html.dark-mode #blacklist-sort:hover,
+html.dark-mode #download-log:hover,
+html.dark-mode .confirm-buttons button:hover,
+html.dark-mode .alert-content button:hover {
+  background-color: #2e4a99;
+}
+
+html.dark-mode #reset-lists {
+  background-color: #4466cc;
+}
+
+html.dark-mode #whitelist-sort {
+  background-color: #4466cc;
+}
+
+html.dark-mode #blacklist-sort {
+  background-color: #4466cc;
+}
+
+html.dark-mode .nav-tab.active {
+  background-color: #4466cc;
 }
 
 
