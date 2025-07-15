@@ -562,6 +562,12 @@ html.dark-mode .nav-tab.active {
   background-color: #4466cc;
 }
 
+html.dark-mode #whitelist thead th,
+html.dark-mode #blacklist thead th {
+  background-color: #4466cc;
+  color: white;
+}
+
 
 /* End of Dark Mode */
 

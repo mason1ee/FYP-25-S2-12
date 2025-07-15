@@ -182,17 +182,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const hostname = url.hostname;
 
     chrome.storage.local.get({ blacklist: [] }, (data) => {
-      const blacklist = data.blacklist || [];
-      if (blacklist.includes(hostname)) {
+      if (data.blacklist.includes(hostname)) {
+        // Inject the DOM overlay script
         chrome.scripting.executeScript({
           target: { tabId },
-          func: () => {
-            showCustomAlert("⚠️ Warning: This site is in your blacklist!\n JS Blocker is ACTIVE", 3500);
-          }
-        });
-      }
-    });
-  }
+          files: ['blacklist-overlay.js']
+      });
+    }
+  });
+}
 });
 
 async function removeAllDynamicRules() {
