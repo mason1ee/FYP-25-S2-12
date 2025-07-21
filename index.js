@@ -864,6 +864,88 @@ function startScan() {
                         y += 6;
                       });
 
+                      y += 10;
+                      if (y > doc.internal.pageSize.getHeight() - 60) {
+                        doc.addPage();
+                        y = 10;
+                      }
+
+                      doc.setFontSize(14);
+                      doc.text("Vulnerability Descriptions", 10, y);
+                      y += 10;
+                      doc.setFontSize(11);
+
+                      const vulnerabilityDescriptions = [
+                        {
+                          title: "Missing Content-Security-Policy",
+                          desc: "This means the website does not clearly tell the browser which types of content are safe to load. Without this protection, hackers might be able to inject harmful code into the website, which could trick users or steal data."
+                        },
+                        {
+                          title: "Missing Strict-Transport-Security",
+                          desc: "The website doesn't force a secure connection (HTTPS). This makes it easier for attackers to intercept or change what users see on the website, especially on public Wi-Fi networks."
+                        },
+                        {
+                          title: "Missing X-Content-Type-Options",
+                          desc: "Without this setting, a browser might incorrectly guess what kind of file is being loaded. Hackers can take advantage of this to run malicious scripts or display harmful content."
+                        },
+                        {
+                          title: "Missing X-Frame-Options",
+                          desc: "The website can be displayed inside another website without restrictions. This can be abused by attackers to trick users into clicking something harmful while thinking it's part of a trusted site."
+                        },
+                        {
+                          title: "Page is not served over HTTPS",
+                          desc: "The website does not use a secure connection. This means any information you enter (like passwords) could be seen or stolen by someone on the same network."
+                        },
+                        {
+                          title: "Inline Scripts ('inline')",
+                          desc: "The website uses scripts directly inside its pages. While common, this makes it easier for attackers to inject harmful code if the site is not well protected."
+                        },
+                        {
+                          title: "External Script Issues",
+                          desc: "Some scripts loaded from outside sources may not be safe or may fail to load properly. This can break parts of the website or expose it to outside threats."
+                        },
+                        {
+                          title: "Unsafe JavaScript Detected: .value used in variable assignment",
+                          desc: "The website uses data entered by users and combines it with other content. If not handled properly, attackers can inject harmful scripts that are added to the page."
+                        },
+                        {
+                          title: "Unsafe JavaScript Detected: .value assigned to innerHTML",
+                          desc: "This means the site takes what a user types and puts it directly into the page layout. If an attacker types in harmful code, it could be shown to other users."
+                        },
+                        {
+                          title: "Unsafe JavaScript Detected: eval() used with .value",
+                          desc: "The site runs user input as real code using eval(). If an attacker enters malicious instructions, the site might run them, putting users at risk."
+                        },
+                        {
+                          title: "Unsafe JavaScript Detected: document.write() with .value",
+                          desc: "The site writes user input directly into the page using document.write(). This can let attackers completely change what is shown or inject dangerous code."
+                        }
+                      ];
+
+                      vulnerabilityDescriptions.forEach(entry => {
+                        const wrappedTitle = doc.splitTextToSize(`• ${entry.title}`, pageWidth - 20);
+                        const wrappedDesc = doc.splitTextToSize(entry.desc, pageWidth - 20);
+
+                        if (y + wrappedTitle.length * 6 + wrappedDesc.length * 6 > doc.internal.pageSize.getHeight() - 10) {
+                          doc.addPage();
+                          y = 10;
+                        }
+
+                        doc.setFont(undefined, "bold");
+                        wrappedTitle.forEach(line => {
+                          doc.text(line, 10, y);
+                          y += 6;
+                        });
+
+                        doc.setFont(undefined, "normal");
+                        wrappedDesc.forEach(line => {
+                          doc.text(line, 14, y);
+                          y += 6;
+                        });
+
+                        y += 4;
+                      });
+
                       const reportFile = `[Webbed]scan-log-${hostname}_${filenameSafeTimestamp}.pdf`;
                       doc.save(reportFile);
 
