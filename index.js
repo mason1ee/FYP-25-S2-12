@@ -550,7 +550,7 @@ function setBadge(targetTabId, score, isSecure) {
   if (isSecure) {
     chrome.action.setBadgeBackgroundColor({ color: "#66CC66", tabId: targetTabId });
   } else {
-    chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: targetTabId });
+    chrome.action.setBadgeBackgroundColor({ color: "#ff8800ff", tabId: targetTabId });
   }
 }
 
@@ -794,7 +794,7 @@ function startScan() {
                       const protocol = new URL(currentTab.url).protocol;
                       const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
                       const color = isSecure ? [0, 128, 0] : [255, 0, 0];
-                      const summary = isSecure ? "appears secure" : "is insecure!";
+                      const summary = isSecure ? "appears secure" : "has some vulnerabilities!";
 
                       doc.setTextColor(...color);
                       doc.text(`Website ${summary}`, 10, y);
@@ -854,7 +854,7 @@ function startScan() {
                         count++;
                         lines.push(`[${count}] Total ${inlineCount} inline scripts`);
                       }
-                      
+
                       const failedFetchCount = allThreats.filter(th =>
                       typeof th === "object" &&
                       th.scriptIndex?.startsWith("external-") &&
