@@ -656,7 +656,7 @@ function startScan() {
                   "Missing Strict-Transport-Security": 5,
                   "Missing X-Content-Type-Options": 3,
                   "Missing X-Frame-Options": 2,
-                  "Page is not served over HTTPS": 10,
+                  "Page is not served over HTTPS": 20,
                   "inline": 3,
                 };
 
@@ -692,9 +692,9 @@ function startScan() {
 
                 printDomainScore();
                 
-                if (totalSeverityScore >= 7) {
-                  statusMessage = "Website is insecure!";
-                  statusColor = "red";
+                if (totalSeverityScore >= 20) {
+                  statusMessage = "Website has some vulnerabilities";
+                  statusColor = "orange";
                   isSecure = false;
                   setBadge(tabId, totalSeverityScore, false);
                 } else if (totalSeverityScore >= 3) {
@@ -827,31 +827,44 @@ function startScan() {
                       y += 8;
                       doc.setFontSize(11);
 
+                      const lines = [];
                       let count = 0;
-                      const lines = allThreats.map(th => {
+
+                      allThreats.forEach(th => {
                         let line;
+
                         if (typeof th === "string") {
-                          line = th;
-                        } else {
+                          count++;
+                          lines.push(`[${count}] ${th}`);
+                        } else if (
+                          th &&
+                          typeof th === "object" &&
+                          !th.error?.includes("Fetch error: Failed to fetch") &&
+                          !(typeof th.scriptIndex === "string" && th.scriptIndex.startsWith("inline"))
+                        ) {
                           const idx = th.scriptIndex || "unknown";
-
-                           // Skip inline scripts
-                          if (typeof idx === "string" && idx.startsWith("inline")) {
-                            return;
-                          }
-
                           const url = th.url || "n/a";
-                          const err = th.error ? " - " + th.error : "";
-                          line = `[${idx}] ${url}${err}`;
+                          const err = th.error ? ` - ${th.error}` : "";
+                          count++;
+                          lines.push(`[${count}] [${idx}] ${url}${err}`);
                         }
-                        count++;
-                        return `[${count}] ${line}`;
                       });
 
                       if (inlineCount > 0) {
                         count++;
-                        lines.push(`[${count}] Total ${inlineCount} inline scripts\n`);
+                        lines.push(`[${count}] Total ${inlineCount} inline scripts`);
                       }
+                      
+                      const failedFetchCount = allThreats.filter(th =>
+                      typeof th === "object" &&
+                      th.scriptIndex?.startsWith("external-") &&
+                      th.error?.includes("Fetch error: Failed to fetch")
+                    ).length;
+
+                    if (failedFetchCount > 0) {
+                      count++;
+                      lines.push(`[${count}] Total ${failedFetchCount} failed to fetch external scripts\n`);
+                    }
 
                       const wrappedLines = doc.splitTextToSize(lines.join("\n"), pageWidth - 20);
                       wrappedLines.forEach(line => {
