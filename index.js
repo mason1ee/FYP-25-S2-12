@@ -793,7 +793,7 @@ function startScan() {
 
                       const protocol = new URL(currentTab.url).protocol;
                       const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
-                      const color = isSecure ? [0, 128, 0] : [255, 0, 0];
+                      const color = isSecure ? [0, 128, 0] : [255, 165, 0];
                       const summary = isSecure ? "appears secure" : "has some vulnerabilities!";
 
                       doc.setTextColor(...color);
