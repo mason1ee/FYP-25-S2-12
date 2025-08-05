@@ -20,6 +20,8 @@ const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
 const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
 const blockerStatusText = document.getElementById("blocker-status-text");
+const toggleBtn = document.getElementById('toggle-advanced-settings');
+const advSettings = document.getElementById('advanced-settings');
 scanContainer.style.display = "none";
 
 // Initial load
@@ -375,8 +377,8 @@ sitesTabBtn.addEventListener("click", () => {
   sitesSection.style.display = "block";
   scanTabBtn.classList.remove("active");
   settingsTabBtn.classList.remove("active");
-  whitelistTab.style.display = "block";
-  blacklistTab.style.display = "none";
+  whitelistTab.style.display = "none";
+  blacklistTab.style.display = "block";
   whitelistTabBtn.classList.add("active");
   blacklistTabBtn.classList.remove("active");
   sitesTabBtn.classList.add("active");
@@ -396,10 +398,10 @@ darkModeToggle.addEventListener("change", () => {
   applyDarkModeStylesToTable();
 });
 
-/* Website list Tab Navigation */
+/* Website list Tab Navigation*/
 whitelistTabBtn.addEventListener("click", () => {
-  whitelistTab.style.display = "block";
-  blacklistTab.style.display = "none";
+  whitelistTab.style.display = "none";
+  blacklistTab.style.display = "block";
   whitelistTabBtn.classList.add("active");
   blacklistTabBtn.classList.remove("active");
 });
@@ -410,6 +412,7 @@ blacklistTabBtn.addEventListener("click", () => {
   whitelistTabBtn.classList.remove("active");
   blacklistTabBtn.classList.add("active");
 });
+
 
 function getTabIdForScanning(callback) {
   chrome.storage.local.get("activeScanTabId", (data) => {

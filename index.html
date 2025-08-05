@@ -61,70 +61,10 @@
 
   <!-- Settings Tab -->
   <div id="settings-tab" class="section" style="display: none;">
-
-    <!-- Page Inspection switch -->
-    <div class="setting-item">
-      <span>
-        Page Inspection
-        <span class="info-icon">
-          ? <span class="info-text">Analyze current website structure and elements for potention issues</span>
-        </span>
-      </span>
-      <label class="switch">
-        <input type="checkbox" id="page-inspection-toggle" checked>
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- Header Scan switch -->
-    <div class="setting-item">
-      <span>
-        Header Scan
-        <span class="info-icon">
-          ? <span class="info-text">Check HTTP headers for security-related information and anomalies</span>
-        </span>
-      </span>
-      <label class="switch">
-        <input type="checkbox" id="header-scan-toggle" checked>
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- Report Generation switch -->
-    <div class="setting-item">
-      <span>
-        Report Generation
-        <span class="info-icon">
-          ? <span class="info-text">Create and Download a detailed security report based on scans</span>
-        </span>
-      </span>
-      <label class="switch">
-        <input type="checkbox" id="report-generation-toggle" checked>
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- JavaScript Check switch -->
-    <div class="setting-item">
-      <span>
-        JavaScript Check
-        <span class="info-icon">
-          ? <span class="info-text">Inspect Javascript content for suspicious and risky scripts</span>
-        </span>
-      </span>
-      <label class="switch">
-        <input type="checkbox" id="js-check-toggle" checked>
-        <span class="slider"></span>
-      </label>
-    </div>
-
     <!-- Dark Mode switch -->
-    <div class="setting-item">
+    <div class="setting-item" style="margin-bottom: 4px;">
       <span>
         Dark Mode
-        <span class="info-icon">
-          ? <span class="info-text">Toggle between light and dark color scheme</span>
-        </span>
       </span>
       <label class="switch">
         <input type="checkbox" id="dark-mode-toggle">
@@ -133,7 +73,7 @@
     </div>
 
     <!-- JS Blocker status -->
-    <div id="blocker-status">
+    <div id="blocker-status" style="margin-bottom: 20px;">
       <input type="checkbox" id="toggle-js-blocker" hidden>
       JS Blocker: <span id="blocker-status-text">Loading...</span>
     </div>
@@ -143,12 +83,13 @@
   <div id="sites-section" class="section" style="display: none;">
     <h2>Manage Websites</h2>
     <button id="reset-lists">Reset Lists</button>
-    <div class="tab-nav">
+
+    <div class="tab-nav" style="display: none;">
       <button class="nav-tab active" id="whitelist-tab-btn">Trusted</button>
       <button class="nav-tab" id="blacklist-tab-btn">Untrusted</button>
     </div>
     
-    <div id="whitelist-tab" style="display: block;" class="list-box">
+    <div id="whitelist-tab" style="display: none;" class="list-box">
       <input type="text" id="whitelist-filter" placeholder="Filter whitelist...">
       <button id="whitelist-sort" data-order="asc">Sort Asc</button>
       <table id="whitelist">
@@ -159,7 +100,7 @@
       </table>
     </div>
 
-    <div id="blacklist-tab" style="display: none;" class="list-box">
+    <div id="blacklist-tab" style="display: block;" class="list-box">
       <input type="text" id="blacklist-filter" placeholder="Filter blacklist...">
       <button id="blacklist-sort" data-order="asc">Sort Asc</button>
       <table id="blacklist">

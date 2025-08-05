@@ -247,7 +247,7 @@
     transition: width 0.1s ease;
   }
 
-  /* Tooltip */
+  /* Tooltip
   .info-icon {
     position: relative; 
     display: inline-block; 
@@ -276,7 +276,7 @@
     z-index: 10;
 
     
-    /* Animation */
+    "Animation"
     opacity: 0;
     transition: opacity 0.05s ease-in 0.1s, transform 0.1s ease-in;
     transform-origin: top center; 
@@ -291,6 +291,21 @@
     transition-delay: 0.5s;
   }
 
+  #toggle-advanced-settings {
+    background-color: #1e88e5;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  #toggle-advanced-settings:hover {
+    background-color: #1565c0;
+  }
+  */
  
   /* Websites Part */
 
@@ -332,7 +347,13 @@
     width: 16px;
     height: 16px;
     fill: red;
-    display: block; /* remove extra space below SVG */
+    display: block;
+  }
+
+  table td:nth-child(2) {
+    width: 40px;
+    max-width: 40px;
+    padding: 0;
   }
 
   .remove-btn:focus {

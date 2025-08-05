@@ -269,7 +269,7 @@ function addRows(tableBody, domains, filterText, order, listName) {
   const filter = filterText.toLowerCase();
   const sortedDomains = sortDomains(domains, order);
   sortedDomains.forEach(domain => {
-    if (domain.toLowerCase().includes(filter)) {
+    if (domain.toLowerCase().startsWith(filter)) {
       const row = document.createElement("tr");
 
       const cellDomain = document.createElement("td");
