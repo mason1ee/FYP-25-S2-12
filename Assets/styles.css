@@ -477,7 +477,7 @@
 
 /* Start of Manually classification */
 
-  /* #blacklistBtn {
+  #blacklistBtn {
     padding: 8px 16px;
     border-radius: 8px;
     background: red;
@@ -487,20 +487,7 @@
     cursor: pointer;
     transition: background-color 0.3s ease;
     margin: 5px 0;
-  } */
-
-  #blacklistBtn {
-    padding: 16px 32px;  /* Increased padding for bigger size */
-    border-radius: 8px;
-    background: red;
-    color: white;
-    border: none;
-    font-size: 18px;     /* Increased font size */
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin: 5px 0;
-}
-
+  }
 
   #blacklistBtn:hover {
     background-color: red;
