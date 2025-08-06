@@ -405,8 +405,9 @@
 
 /* Start of download log button css */
 
-  #download-log, #download-dlog{
-    display: inline-block;
+  #download-log,
+  #download-dlog {
+    display: inline-block; /* Or block — just not flex */
     margin-right: 10px;
     background: #2276bf;
     color: #fff;
@@ -414,10 +415,11 @@
     font-size: 13px;
     line-height: 38px;
     border-radius: 50px;
-    -webkit-transition: all 0.3s;
     transition: all 0.3s;
     width: 170px;
     text-align: center;
+    border: none;
+    cursor: pointer;
   }
 
   #download-dlog {
@@ -425,10 +427,17 @@
     padding: 0 3px;
   }
 
-  #download-log:hover, #download-dlog:hover {
+  #download-log:hover,
+  #download-dlog:hover {
     background: #fff;
     color: #003f83;
     box-shadow: 0 4px 4px rgba(83, 100, 255, 0.32);
+  }
+
+  /* Flex container to place buttons side by side */
+  .button-container {
+    display: flex;
+    gap: 10px;
   }
 
 /* End of download log button css */

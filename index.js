@@ -23,8 +23,6 @@ const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
 const blacklistBtn = document.getElementById("blacklistBtn");
 const blockerStatusText = document.getElementById("blocker-status-text");
-// const toggleBtn = document.getElementById('toggle-advanced-settings');
-// const advSettings = document.getElementById('advanced-settings');
 scanContainer.style.display = "none";
 
 // Initial load
@@ -304,7 +302,8 @@ async function updateUIBasedOnActiveTab() {
       // Set status to "Not Applicable"
       blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
       blockerStatusText.classList.remove("active", "inactive");
-      
+    
+      // Delete if removing blacklist button
       // if (classificationBtn) {
       //   classificationBtn.style.display = "none";
       // }
@@ -323,6 +322,7 @@ async function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.toggle("inactive", !isBlocked);
       blockerStatusText.classList.remove("na");
 
+      // Delete if removing blacklist button
       // if (classificationBtn) {
       //   classificationBtn.style.display = "none";
       // }
@@ -522,6 +522,8 @@ function resetScanContainer() {
   // Hide download and classification buttons if visible
   downloadBtn.style.display = "none";
   downloadDBtn.style.display = "none"
+
+  // Delete if removing blacklist button
   //classificationBtn.style.display = "none";
 
   // Clear any intervals and listeners
@@ -681,15 +683,6 @@ function startScan() {
 
                 // Combine all threats (headers + content)
                 allThreats = [...filteredContentThreats, ...headerThreats];
-
-                // Calculate total severity score
-                // allThreats.forEach(threat => {
-                //   if (typeof threat === "string") {
-                //     totalSeverityScore += severityScores[threat] || 1;
-                //   } else if (threat.type) {
-                //     totalSeverityScore += severityScores[threat.type] || 1;
-                //   }
-                // });
 
                 headerThreats.forEach(threat => {
                   if (typeof threat === "string") {
@@ -919,11 +912,16 @@ function startScan() {
                       y += 12;
 
                       const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
-                      const color = isSecure ? [0,128,0] : [255,165,0];
-                      const summary = isSecure ? "appears secure" : "has some vulnerabilities!";
+                      const color = totalSeverityScore >= 20
+                                          ? [255, 0, 0]         // Red
+                                          : totalSeverityScore >= 10
+                                          ? [255, 165, 0]       // Orange
+                                          : [0, 128, 0];        // Green
+
+                      const summary = statusMessage;
 
                       doc.setTextColor(...color);
-                      doc.text(`Website ${summary}`, 10, y);
+                      doc.text(`${summary}`, 10, y);
                       y += 10;
                       doc.setTextColor(0, 0, 0);
 
@@ -979,15 +977,6 @@ function startScan() {
                       doc.setFontSize(14);
                       doc.text("Vulnerability Descriptions", 10, y); y += 10;
                       doc.setFontSize(11);
-
-                      // const descriptions = [
-                      //   { title: "Missing Content-Security-Policy", desc: "..." },
-                      //   { title: "Missing Strict-Transport-Security", desc: "..." },
-                      //   { title: "Missing X-Content-Type-Options", desc: "..." },
-                      //   { title: "Missing X-Frame-Options", desc: "..." },
-                      //   { title: "Page is not served over HTTPS", desc: "..." },
-                      //   { title: "Inline Scripts ('inline')", desc: "..." },
-                      // ];
                       y = addVulnerabilityDescriptions(doc, y, pageWidth, vulnerabilityDescriptions);
 
                       const reportFile = `[Webbed]scan-log-${hostname}_${filenameSafeTimestamp}.pdf`;
@@ -996,6 +985,7 @@ function startScan() {
                   });
                 };
 
+                // For detailed report
                 downloadDBtn.onclick = () => {
                   chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
                     chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
@@ -1047,11 +1037,15 @@ function startScan() {
 
                       const protocol = new URL(currentTab.url).protocol;
                       const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
-                      const color = isSecure ? [0, 128, 0] : [255, 165, 0];
-                      const summary = isSecure ? "appears secure" : "has some vulnerabilities!";
+                      const color = totalSeverityScore >= 20
+                                          ? [255, 0, 0]         // Red
+                                          : totalSeverityScore >= 10
+                                          ? [255, 165, 0]       // Orange
+                                          : [0, 128, 0];        // Green
+                      const summary = statusMessage;
 
                       doc.setTextColor(...color);
-                      doc.text(`Website ${summary}`, 10, y);
+                      doc.text(`${summary}`, 10, y);
                       y += 10;
                       doc.setTextColor(0, 0, 0);
 
@@ -1121,7 +1115,7 @@ function startScan() {
                       }
 
                       console.log("skipped: " + skippedLargeScriptUrls);
-                      // ✅ Add grouped large script skip line
+                      // Add grouped large script skip line
                       if (skippedLargeScriptUrls.length > 0) {
                         count++;
                         lines.push(`[${count}] ${skippedLargeScriptUrls.length} large scripts skipped: ${skippedLargeScriptUrls.join(", ")}`);
@@ -1190,6 +1184,7 @@ function startScan() {
                   return new Promise(resolve => setTimeout(resolve, ms));
                 }
 
+                // Delete if removing blacklist button
                 //classificationBtn.style.display = "none";
 
                 // For manual blacklist button
@@ -1230,7 +1225,6 @@ function placeCreditsBanner() {
   settingsTab.appendChild(banner.cloneNode(true));
   sitesSection.appendChild(banner.cloneNode(true));
 
-  // Hide original container if you want to keep it hidden
   banner.style.display = 'none';
 }
 
