@@ -3,7 +3,7 @@ import { getActiveHttpTab } from './background.js';
 let whitelistFilterInput, blacklistFilterInput, whitelistBody, blacklistBody, whitelistSortBtn, blacklistSortBtn, whitelistBtn, blacklistBtn;
 let whitelist = [], blacklist = [];
 
-async function reloadTabsMatchingOriginalTabDomain() {
+export async function reloadTabsMatchingOriginalTabDomain() {
   try {
     const activeTab = await getActiveHttpTab();
     if (!activeTab || !activeTab.url) {

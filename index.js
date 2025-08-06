@@ -1,4 +1,5 @@
 import { getActiveHttpTab } from "./background.js";
+import { reloadTabsMatchingOriginalTabDomain } from './lists.js';
 const popoutButton = document.getElementById("popout-btn");
 const darkModeToggle = document.getElementById("dark-mode-toggle");
 const progressBar = document.getElementById("progress-bar");
@@ -658,13 +659,16 @@ function startScan() {
 
                 // Define severity scores for header issues and protocol issues
                 const severityScores = {
-                  "Missing Content-Security-Policy": 5,
-                  "Missing Strict-Transport-Security": 5,
-                  "Missing X-Content-Type-Options": 3,
-                  "Missing X-Frame-Options": 2,
+                  "Missing Content-Security-Policy": 2,
+                  "Missing Strict-Transport-Security": 3,
+                  "Missing X-Content-Type-Options": 1,
+                  "Missing X-Frame-Options": 1,
                   "Page is not served over HTTPS": 20,
-                  "inline": 3,
                 };
+
+                if (protocol !== "https:") {
+                  headerThreats.push("Page is not served over HTTPS");
+                }
 
                 if (!headers["content-security-policy"])
                   headerThreats.push("Missing Content-Security-Policy");
@@ -675,21 +679,31 @@ function startScan() {
                 if (!headers["strict-transport-security"])
                   headerThreats.push("Missing Strict-Transport-Security");
 
-                if (protocol !== "https:") {
-                  headerThreats.push("Page is not served over HTTPS");
-                }
-
                 // Combine all threats (headers + content)
                 allThreats = [...filteredContentThreats, ...headerThreats];
 
                 // Calculate total severity score
-                allThreats.forEach(threat => {
+                // allThreats.forEach(threat => {
+                //   if (typeof threat === "string") {
+                //     totalSeverityScore += severityScores[threat] || 1;
+                //   } else if (threat.type) {
+                //     totalSeverityScore += severityScores[threat.type] || 1;
+                //   }
+                // });
+
+                headerThreats.forEach(threat => {
                   if (typeof threat === "string") {
                     totalSeverityScore += severityScores[threat] || 1;
-                  } else if (threat.type) {
-                    totalSeverityScore += severityScores[threat.type] || 1;
                   }
                 });
+
+                filteredContentThreats.forEach(threat => {
+                  if (typeof threat === "string") {
+                    totalSeverityScore += severityScores[threat] || 0.1;
+                  }
+                });
+
+                totalSeverityScore = Math.ceil(totalSeverityScore);
 
                 // Determine status based on severity score thresholds
                 let statusMessage = "";
@@ -699,20 +713,20 @@ function startScan() {
                 printDomainScore();
                 
                 if (totalSeverityScore >= 20) {
-                  statusMessage = "Website has some vulnerabilities";
-                  statusColor = "orange";
+                  statusMessage = "Website has critical vulnerabilities";
+                  statusColor = "red";
                   isSecure = false;
                   setBadge(tabId, totalSeverityScore, false);
-                } else if (totalSeverityScore >= 3) {
+                } else if (totalSeverityScore >= 10) {
                   statusMessage = "Website has some security warnings.";
                   statusColor = "orange";
                   isSecure = true; // Warning but not fully insecure
                   setBadge(tabId, totalSeverityScore, true);
-                } else if (totalSeverityScore == 0) {
+                } else if (totalSeverityScore <= 7) {
                   statusMessage = "Website appears secure.";
                   statusColor = "green";
                   isSecure = true;
-                  setBadge(tabId, "", true);
+                  setBadge(tabId, totalSeverityScore, true);
                 } else {
                   statusMessage = "Website appears secure.";
                   statusColor = "green";
@@ -966,14 +980,14 @@ function startScan() {
                       doc.text("Vulnerability Descriptions", 10, y); y += 10;
                       doc.setFontSize(11);
 
-                      const descriptions = [
-                        { title: "Missing Content-Security-Policy", desc: "..." },
-                        { title: "Missing Strict-Transport-Security", desc: "..." },
-                        { title: "Missing X-Content-Type-Options", desc: "..." },
-                        { title: "Missing X-Frame-Options", desc: "..." },
-                        { title: "Page is not served over HTTPS", desc: "..." },
-                        { title: "Inline Scripts ('inline')", desc: "..." },
-                      ];
+                      // const descriptions = [
+                      //   { title: "Missing Content-Security-Policy", desc: "..." },
+                      //   { title: "Missing Strict-Transport-Security", desc: "..." },
+                      //   { title: "Missing X-Content-Type-Options", desc: "..." },
+                      //   { title: "Missing X-Frame-Options", desc: "..." },
+                      //   { title: "Page is not served over HTTPS", desc: "..." },
+                      //   { title: "Inline Scripts ('inline')", desc: "..." },
+                      // ];
                       y = addVulnerabilityDescriptions(doc, y, pageWidth, vulnerabilityDescriptions);
 
                       const reportFile = `[Webbed]scan-log-${hostname}_${filenameSafeTimestamp}.pdf`;
@@ -1133,13 +1147,11 @@ function startScan() {
                     });
                   });
                 };
-
-                //classificationBtn.style.display = "none";
-
-                chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, ({ hostname }) => {
+                
+                chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async ({ hostname }) => {
                   if (!hostname) return;
 
-                  chrome.storage.local.get(["whitelist", "blacklist"], ({ whitelist = [], blacklist = [] }) => {
+                  chrome.storage.local.get(["whitelist", "blacklist"], async ({ whitelist = [], blacklist = [] }) => {
                     whitelist = whitelist || [];
                     blacklist = blacklist || [];
 
@@ -1154,16 +1166,35 @@ function startScan() {
 
                     // Add to correct list based on severity score
                     if (totalSeverityScore >= 20) {
-                      blacklist.push(hostname);
+                      chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
+                        if (!blacklist.includes(hostname)) {
+                          await sleep(2000);
+                          window.showCustomAlert("Website flagged! Blacklisting...");
+                          blacklist.push(hostname);
+                          await sleep(1000);
+                          reloadTabsMatchingOriginalTabDomain();
+                          chrome.storage.local.set({ blacklist });
+                          return;
+                        } else{
+                          return;
+                        }
+                      });
                     } else {
                       whitelist.push(hostname);
+                      chrome.storage.local.set({ whitelist });
                     }
-
-                    chrome.storage.local.set({ whitelist, blacklist });
                   });
                 });
 
-                blacklistBtn.style.display = "inline-block";
+                function sleep(ms) {
+                  return new Promise(resolve => setTimeout(resolve, ms));
+                }
+
+                //classificationBtn.style.display = "none";
+
+                // For manual blacklist button
+                //blacklistBtn.style.display = "inline-block";
+
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
               });
