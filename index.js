@@ -982,6 +982,33 @@ function startScan() {
 
                 classificationBtn.style.display = "none";
 
+                chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, ({ hostname }) => {
+                  if (!hostname) return;
+
+                  chrome.storage.local.get(["whitelist", "blacklist"], ({ whitelist = [], blacklist = [] }) => {
+                    whitelist = whitelist || [];
+                    blacklist = blacklist || [];
+
+                    const inWhitelist = whitelist.includes(hostname);
+                    const inBlacklist = blacklist.includes(hostname);
+
+                    // Remove from both lists to avoid duplicates
+                    if (inWhitelist || inBlacklist) {
+                      whitelist = whitelist.filter(site => site !== hostname);
+                      blacklist = blacklist.filter(site => site !== hostname);
+                    }
+
+                    // Add to correct list based on severity score
+                    if (totalSeverityScore >= 20) {
+                      blacklist.push(hostname);
+                    } else {
+                      whitelist.push(hostname);
+                    }
+
+                    chrome.storage.local.set({ whitelist, blacklist });
+                  });
+                });
+
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
               });
@@ -1052,32 +1079,5 @@ window.addEventListener("DOMContentLoaded", async () => {
         }, 500);
       });
     }
-  });
-});
-
-// Auto-classify based on severity score
-chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, ({ hostname }) => {
-  if (!hostname) return;
-
-  chrome.storage.local.get(["whitelist", "blacklist"], ({ whitelist = [], blacklist = [] }) => {
-    const inWhitelist = whitelist.includes(hostname);
-    const inBlacklist = blacklist.includes(hostname);
-
-    // Remove from both first (prevent duplicates or wrong list)
-    if (inWhitelist || inBlacklist) {
-      whitelist = whitelist.filter(site => site !== hostname);
-      blacklist = blacklist.filter(site => site !== hostname);
-    }
-
-    // Add to correct list
-    if (totalSeverityScore >= 7) {
-      blacklist.push(hostname);
-    } else if (totalSeverityScore < 3) {
-      blacklist.push(hostname);
-    } else {
-      whitelist.push(hostname);
-    }
-
-    chrome.storage.local.set({ whitelist, blacklist });
   });
 });
