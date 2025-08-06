@@ -20,9 +20,10 @@ const whitelistTabBtn = document.getElementById("whitelist-tab-btn");
 const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
 const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
+const blacklistBtn = document.getElementById("blacklistBtn");
 const blockerStatusText = document.getElementById("blocker-status-text");
-const toggleBtn = document.getElementById('toggle-advanced-settings');
-const advSettings = document.getElementById('advanced-settings');
+// const toggleBtn = document.getElementById('toggle-advanced-settings');
+// const advSettings = document.getElementById('advanced-settings');
 scanContainer.style.display = "none";
 
 // Initial load
@@ -303,9 +304,9 @@ async function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
       blockerStatusText.classList.remove("active", "inactive");
       
-      if (classificationBtn) {
-        classificationBtn.style.display = "none";
-      }
+      // if (classificationBtn) {
+      //   classificationBtn.style.display = "none";
+      // }
 
       return;
     }
@@ -321,9 +322,9 @@ async function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.toggle("inactive", !isBlocked);
       blockerStatusText.classList.remove("na");
 
-      if (classificationBtn) {
-        classificationBtn.style.display = "none";
-      }
+      // if (classificationBtn) {
+      //   classificationBtn.style.display = "none";
+      // }
     });
   } catch (err) {
     console.error("Failed to get active tab: ", err);
@@ -519,7 +520,8 @@ function resetScanContainer() {
 
   // Hide download and classification buttons if visible
   downloadBtn.style.display = "none";
-  classificationBtn.style.display = "none";
+  downloadDBtn.style.display = "none"
+  //classificationBtn.style.display = "none";
 
   // Clear any intervals and listeners
   if (interval) clearInterval(interval);
@@ -1132,7 +1134,7 @@ function startScan() {
                   });
                 };
 
-                classificationBtn.style.display = "none";
+                //classificationBtn.style.display = "none";
 
                 chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, ({ hostname }) => {
                   if (!hostname) return;
@@ -1161,6 +1163,7 @@ function startScan() {
                   });
                 });
 
+                blacklistBtn.style.display = "inline-block";
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
               });
