@@ -345,6 +345,7 @@ async function updateCurrentDomain() {
         domainText.textContent = "Invalid URL.";
       }
     } else {
+      resetScanContainer();
       domainText.textContent = "No active website detected.";
     }
   } catch (err) {
@@ -559,7 +560,7 @@ function setBadge(targetTabId, score, isSecure) {
   if (isSecure) {
     chrome.action.setBadgeBackgroundColor({ color: "#66CC66", tabId: targetTabId });
   } else {
-    chrome.action.setBadgeBackgroundColor({ color: "#ff8800ff", tabId: targetTabId });
+    chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: targetTabId });
   }
 }
 
@@ -953,11 +954,11 @@ function startScan() {
                       let count = 0;
                       const lines = [];
                       const headerKeywords = [
+                        "Page is not served over HTTPS",
                         "Missing Content-Security-Policy",
                         "Missing Strict-Transport-Security",
                         "Missing X-Content-Type-Options",
-                        "Missing X-Frame-Options",
-                        "Page is not served over HTTPS"
+                        "Missing X-Frame-Options"
                       ];
                       for (const header of headerKeywords) {
                         if (allThreats.some(th => typeof th === "string" && th.includes(header))) {
