@@ -6,6 +6,7 @@ const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
 const resultText = document.getElementById("scan-result");
 const downloadBtn = document.getElementById("download-log");
+const downloadDBtn = document.getElementById("download-dlog");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
 const classificationBtn = document.getElementById("classification-buttons");
@@ -722,7 +723,7 @@ function startScan() {
 
                 // Show vulnerabilities count if any
                 if (allThreats.length > 0) {
-                  vulnCountText.textContent = `${allThreats.length} vulnerabilities detected.`;
+                  vulnCountText.textContent = `${allThreats.length} issues detected.`;
                 } else {
                   vulnCountText.textContent = "";
                 }
@@ -733,8 +734,253 @@ function startScan() {
                   applyDarkModeStylesToTable();
                 });
 
+                function getTimestamp() {
+                  const options = {
+                    timeZone: "Asia/Singapore",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                  };
+                  const formatter = new Intl.DateTimeFormat("en-GB", options);
+                  const timestamp = formatter.format(new Date());
+                  const filenameSafeTimestamp = timestamp.replace(/[^\d]/g, "_");
+                  return { timestamp, filenameSafeTimestamp };
+                }
+
+                function countInlineScripts(allThreats) {
+                  return allThreats.filter(th =>
+                    (typeof th === "string" && th.includes("inline-")) ||
+                    (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
+                  ).length;
+                }
+
+                function addWrappedText(doc, text, x, y, maxWidth, fontSize = 11, lineHeight = 6) {
+                  const lines = doc.splitTextToSize(text, maxWidth);
+                  const pageHeight = doc.internal.pageSize.getHeight();
+                  doc.setFontSize(fontSize);
+
+                  lines.forEach(line => {
+                    if (y > pageHeight - 10) {
+                      doc.addPage();
+                      y = 10;
+                    }
+                    doc.text(line, x, y);
+                    y += lineHeight;
+                  });
+
+                  return y;
+                }
+
+                function addVulnerabilityDescriptions(doc, y, pageWidth, descriptions) {
+                  descriptions.forEach(entry => {
+                    const wrappedTitle = doc.splitTextToSize(`• ${entry.title}`, pageWidth - 20);
+                    const wrappedDesc = doc.splitTextToSize(entry.desc, pageWidth - 20);
+                    const neededHeight = (wrappedTitle.length + wrappedDesc.length) * 6;
+
+                    if (y + neededHeight > doc.internal.pageSize.getHeight() - 10) {
+                      doc.addPage();
+                      y = 10;
+                    }
+
+                    doc.setFont(undefined, "bold");
+                    wrappedTitle.forEach(line => {
+                      doc.text(line, 10, y);
+                      y += 6;
+                    });
+
+                    doc.setFont(undefined, "normal");
+                    wrappedDesc.forEach(line => {
+                      doc.text(line, 14, y);
+                      y += 6;
+                    });
+
+                    y += 4;
+                  });
+
+                  return y;
+                }
+
+                async function getBase64ImageFromUrl(imageUrl) {
+                  const blob = await fetch(imageUrl).then(res => res.blob());
+                  return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                  });
+                }
+
+                const vulnerabilityDescriptions = [
+                {
+                  title: "Missing Content-Security-Policy",
+                  desc: "This means the website does not clearly tell the browser which types of content are safe to load..."
+                },
+                {
+                  title: "Missing Strict-Transport-Security",
+                  desc: "The website doesn't force a secure connection (HTTPS)..."
+                },
+                {
+                  title: "Missing X-Content-Type-Options",
+                  desc: "Without this setting, a browser might incorrectly guess the file type..."
+                },
+                {
+                  title: "Missing X-Frame-Options",
+                  desc: "The website can be embedded in other sites, increasing risk of clickjacking..."
+                },
+                {
+                  title: "Page is not served over HTTPS",
+                  desc: "The website does not use HTTPS, allowing attackers to intercept data..."
+                },
+                {
+                  title: "Inline Scripts ('inline')",
+                  desc: "Using inline scripts increases the risk of code injection..."
+                },
+                {
+                  title: "External Script Issues",
+                  desc: "External scripts may not be safe or may fail to load, exposing the site to risks..."
+                },
+                {
+                  title: "Unsafe JavaScript Detected: .value used in variable assignment",
+                  desc: "User inputs combined with variables can allow harmful scripts..."
+                },
+                {
+                  title: "Unsafe JavaScript Detected: .value assigned to innerHTML",
+                  desc: "Assigning user input to innerHTML can lead to code injection..."
+                },
+                {
+                  title: "Unsafe JavaScript Detected: eval() used with .value",
+                  desc: "Using eval() on user input is dangerous as it executes code directly..."
+                },
+                {
+                  title: "Unsafe JavaScript Detected: document.write() with .value",
+                  desc: "document.write() with input allows attackers to rewrite content with malicious code..."
+                }
+              ];
+
                 downloadBtn.style.display = "inline-block";
+                downloadDBtn.style.display = "inline-block";
+
                 downloadBtn.onclick = () => {
+                  chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
+                    chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
+                      if (!response || response.error) {
+                        showCustomAlert(response?.error || "Unable to retrieve tab information.", 5000);
+                        return;
+                      }
+
+                      const { hostname, url } = response;
+                      const { timestamp, filenameSafeTimestamp } = getTimestamp();
+                      const inlineCount = countInlineScripts(allThreats);
+                      const externalCount = new Set(
+                        allThreats
+                          .filter(th => typeof th === "object" && th.scriptIndex?.startsWith("external-"))
+                          .map(th => th.scriptIndex)
+                      ).size;
+
+                      const { jsPDF } = window.jspdf;
+                      const doc = new jsPDF();
+                      let y = 10;
+                      const pageWidth = doc.internal.pageSize.getWidth();
+
+                      const imgData = await getBase64ImageFromUrl(chrome.runtime.getURL("Assets/logo/Webbed128.png"));
+                      doc.addImage(imgData, "PNG", 10, y, 48, 48); 
+                      y += 58;
+
+                      doc.setFontSize(18);
+                      const title = "    Generated by Webbed | Client-Side Script Security Inspector    ";
+                      const titleWidth = doc.getTextWidth(title);
+                      doc.text(title, (pageWidth - titleWidth) / 2, y);
+                      y += 10;
+
+                      doc.setFontSize(18);
+                      const subheader = "    FYP-25-S2-12    ";
+                      const subheaderWidth = doc.getTextWidth(subheader);
+                      doc.text(subheader, (pageWidth - subheaderWidth) / 2, y);
+                      y += 12;
+
+                      const isBlocked = hostname in jsBlockStates ? jsBlockStates[hostname] : blacklist.includes(hostname);
+                      const color = isSecure ? [0,128,0] : [255,165,0];
+                      const summary = isSecure ? "appears secure" : "has some vulnerabilities!";
+
+                      doc.setTextColor(...color);
+                      doc.text(`Website ${summary}`, 10, y);
+                      y += 10;
+                      doc.setTextColor(0, 0, 0);
+
+                      const infoLines = [
+                        `Report for: ${url}`,
+                        `Scan Timestamp: ${timestamp}`,
+                        `JS Blocker: ${isBlocked ? "ACTIVE" : "INACTIVE"}`,
+                        `Protocol: ${new URL(url).protocol}`,
+                        `Severity Score: ${totalSeverityScore}`,
+                        `${allThreats.length} potential issues`,
+                        `Script Summary: ${inlineCount} inline, ${externalCount} external`
+                      ];
+                      infoLines.forEach((line) => {
+                        const split = doc.splitTextToSize(line, pageWidth - 20);
+                        split.forEach((part) => {
+                          doc.text(part, 10, y);
+                          y += 10;
+                        });
+                      });
+
+                      y += 5;
+
+                      const threatHeader = "Issues Found:";
+                      doc.setFontSize(13);
+                      doc.text(threatHeader, 10, y);
+                      y += 8;
+                      doc.setFontSize(11);
+
+                      let count = 0;
+                      const lines = [];
+                      const headerKeywords = [
+                        "Missing Content-Security-Policy",
+                        "Missing Strict-Transport-Security",
+                        "Missing X-Content-Type-Options",
+                        "Missing X-Frame-Options",
+                        "Page is not served over HTTPS"
+                      ];
+                      for (const header of headerKeywords) {
+                        if (allThreats.some(th => typeof th === "string" && th.includes(header))) {
+                          count++;
+                          lines.push(`[${count}] ${header}`);
+                        }
+                      }
+                      if (inlineCount > 0) {
+                        count++;
+                        lines.push(`[${count}] Total ${inlineCount} inline scripts`);
+                      }
+                      y = addWrappedText(doc, lines.join("\n"), 10, y, pageWidth - 20, 11, 6);
+
+                      y += 10;
+                      if (y > doc.internal.pageSize.getHeight() - 60) { doc.addPage(); y = 10; }
+
+                      doc.setFontSize(14);
+                      doc.text("Vulnerability Descriptions", 10, y); y += 10;
+                      doc.setFontSize(11);
+
+                      const descriptions = [
+                        { title: "Missing Content-Security-Policy", desc: "..." },
+                        { title: "Missing Strict-Transport-Security", desc: "..." },
+                        { title: "Missing X-Content-Type-Options", desc: "..." },
+                        { title: "Missing X-Frame-Options", desc: "..." },
+                        { title: "Page is not served over HTTPS", desc: "..." },
+                        { title: "Inline Scripts ('inline')", desc: "..." },
+                      ];
+                      y = addVulnerabilityDescriptions(doc, y, pageWidth, vulnerabilityDescriptions);
+
+                      const reportFile = `[Webbed]scan-log-${hostname}_${filenameSafeTimestamp}.pdf`;
+                      doc.save(reportFile);
+                    });
+                  });
+                };
+
+                downloadDBtn.onclick = () => {
                   chrome.storage.local.get(["jsBlockStates", "blacklist"], async ({ jsBlockStates, blacklist }) => {
                     chrome.runtime.sendMessage({ type: "getActiveTabInfo" }, async (response) => {
                       if (!response || response.error) {
@@ -744,26 +990,9 @@ function startScan() {
 
                       const { hostname, tabId, url } = response;
                       const currentTab = { id: tabId, url };
+                      const { timestamp, filenameSafeTimestamp } = getTimestamp();
 
-                      const options = {
-                        timeZone: "Asia/Singapore",
-                        year: "numeric",
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        second: "2-digit",
-                        hour12: false,
-                      };
-                      const formatter = new Intl.DateTimeFormat("en-GB", options);
-                      const timestamp = formatter.format(new Date());
-                      const filenameSafeTimestamp = timestamp.replace(/[^\d]/g, "_");
-
-                      const inlineCount = allThreats.filter(th =>
-                        (typeof th === "string" && th.includes("inline-") ||
-                        typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
-                      ).length;
-
+                      const inlineCount = countInlineScripts(allThreats);
                       const externalScriptsSet = new Set();
                       allThreats.forEach(th => {
                         if (typeof th === "object" && th.scriptIndex?.startsWith("external-")) {
@@ -771,6 +1000,12 @@ function startScan() {
                         }
                       });
                       const externalCount = externalScriptsSet.size;
+
+                      const failedFetchCount = allThreats.filter(th =>
+                        typeof th === "object" &&
+                        th.scriptIndex?.startsWith("external-") &&
+                        th.error?.includes("Fetch error: Failed to fetch")
+                      ).length;
 
                       const { jsPDF } = window.jspdf;
                       const doc = new jsPDF();
@@ -805,13 +1040,13 @@ function startScan() {
                       doc.setTextColor(0, 0, 0);
 
                       const infoLines = [
-                        `Report for: ${currentTab.url}`,
+                        `Detailed Report for: ${currentTab.url}`,
                         `Scan Timestamp: ${timestamp}`,
                         `JS Blocker: ${isBlocked ? "ACTIVE" : "INACTIVE"}`,
                         `Protocol: ${protocol}`,
                         `Severity Score: ${totalSeverityScore}`,
-                        `Vulnerabilities: ${allThreats.length} found`,
-                        `Script Summary: ${inlineCount} inline, ${externalCount} external`,
+                        `${allThreats.length} potential issues`,
+                        `Script Summary: ${inlineCount} inline, ${externalCount} external`
                       ];
 
                       infoLines.forEach((line) => {
@@ -823,33 +1058,39 @@ function startScan() {
                       });
 
                       y += 5;
-
-                      const threatHeader = "Threats Found:";
+                      const threatHeader = "Issues Found:";
                       doc.setFontSize(13);
                       doc.text(threatHeader, 10, y);
                       y += 8;
                       doc.setFontSize(11);
 
-                      const lines = [];
                       let count = 0;
+                      const lines = [];
+                      const skippedLargeScriptUrls = [];
 
                       allThreats.forEach(th => {
-                        let line;
-
                         if (typeof th === "string") {
                           count++;
                           lines.push(`[${count}] ${th}`);
-                        } else if (
-                          th &&
-                          typeof th === "object" &&
-                          !th.error?.includes("Fetch error: Failed to fetch") &&
-                          !(typeof th.scriptIndex === "string" && th.scriptIndex.startsWith("inline"))
-                        ) {
+                        } else if (th && typeof th === "object") {
                           const idx = th.scriptIndex || "unknown";
-                          const url = th.url || "n/a";
+                          const src = th.url || "n/a";
                           const err = th.error ? ` - ${th.error}` : "";
-                          count++;
-                          lines.push(`[${count}] [${idx}] ${url}${err}`);
+
+                          if (th.error?.includes("Skipped large script")) {
+                            if (src !== "n/a") {
+                              skippedLargeScriptUrls.push(src);
+                            }
+                            return; // skip adding as individual line
+                          }
+
+                          if (
+                            !th.error?.includes("Fetch error: Failed to fetch") &&
+                            !(typeof th.scriptIndex === "string" && th.scriptIndex.startsWith("inline"))
+                          ) {
+                            count++;
+                            lines.push(`[${count}] [${idx}] ${src}${err}`);
+                          }
                         }
                       });
 
@@ -858,27 +1099,19 @@ function startScan() {
                         lines.push(`[${count}] Total ${inlineCount} inline scripts`);
                       }
 
-                      const failedFetchCount = allThreats.filter(th =>
-                      typeof th === "object" &&
-                      th.scriptIndex?.startsWith("external-") &&
-                      th.error?.includes("Fetch error: Failed to fetch")
-                    ).length;
+                      if (failedFetchCount > 0) {
+                        count++;
+                        lines.push(`[${count}] Total ${failedFetchCount} failed to fetch external scripts`);
+                      }
 
-                    if (failedFetchCount > 0) {
-                      count++;
-                      lines.push(`[${count}] Total ${failedFetchCount} failed to fetch external scripts\n`);
-                    }
+                      console.log("skipped: " + skippedLargeScriptUrls);
+                      // ✅ Add grouped large script skip line
+                      if (skippedLargeScriptUrls.length > 0) {
+                        count++;
+                        lines.push(`[${count}] ${skippedLargeScriptUrls.length} large scripts skipped: ${skippedLargeScriptUrls.join(", ")}`);
+                      }
 
-                      const wrappedLines = doc.splitTextToSize(lines.join("\n"), pageWidth - 20);
-                      wrappedLines.forEach(line => {
-                        if (y > doc.internal.pageSize.getHeight() - 10) {
-                          doc.addPage();
-                          y = 10;
-                          doc.setFontSize(11);
-                        }
-                        doc.text(line, 10, y);
-                        y += 6;
-                      });
+                      y = addWrappedText(doc, lines.join("\n"), 10, y, pageWidth - 20, 11, 6);
 
                       y += 10;
                       if (y > doc.internal.pageSize.getHeight() - 60) {
@@ -891,94 +1124,13 @@ function startScan() {
                       y += 10;
                       doc.setFontSize(11);
 
-                      const vulnerabilityDescriptions = [
-                        {
-                          title: "Missing Content-Security-Policy",
-                          desc: "This means the website does not clearly tell the browser which types of content are safe to load. Without this protection, hackers might be able to inject harmful code into the website, which could trick users or steal data."
-                        },
-                        {
-                          title: "Missing Strict-Transport-Security",
-                          desc: "The website doesn't force a secure connection (HTTPS). This makes it easier for attackers to intercept or change what users see on the website, especially on public Wi-Fi networks."
-                        },
-                        {
-                          title: "Missing X-Content-Type-Options",
-                          desc: "Without this setting, a browser might incorrectly guess what kind of file is being loaded. Hackers can take advantage of this to run malicious scripts or display harmful content."
-                        },
-                        {
-                          title: "Missing X-Frame-Options",
-                          desc: "The website can be displayed inside another website without restrictions. This can be abused by attackers to trick users into clicking something harmful while thinking it's part of a trusted site."
-                        },
-                        {
-                          title: "Page is not served over HTTPS",
-                          desc: "The website does not use a secure connection. This means any information you enter (like passwords) could be seen or stolen by someone on the same network."
-                        },
-                        {
-                          title: "Inline Scripts ('inline')",
-                          desc: "The website uses scripts directly inside its pages. While common, this makes it easier for attackers to inject harmful code if the site is not well protected."
-                        },
-                        {
-                          title: "External Script Issues",
-                          desc: "Some scripts loaded from outside sources may not be safe or may fail to load properly. This can break parts of the website or expose it to outside threats."
-                        },
-                        {
-                          title: "Unsafe JavaScript Detected: .value used in variable assignment",
-                          desc: "The website uses data entered by users and combines it with other content. If not handled properly, attackers can inject harmful scripts that are added to the page."
-                        },
-                        {
-                          title: "Unsafe JavaScript Detected: .value assigned to innerHTML",
-                          desc: "This means the site takes what a user types and puts it directly into the page layout. If an attacker types in harmful code, it could be shown to other users."
-                        },
-                        {
-                          title: "Unsafe JavaScript Detected: eval() used with .value",
-                          desc: "The site runs user input as real code using eval(). If an attacker enters malicious instructions, the site might run them, putting users at risk."
-                        },
-                        {
-                          title: "Unsafe JavaScript Detected: document.write() with .value",
-                          desc: "The site writes user input directly into the page using document.write(). This can let attackers completely change what is shown or inject dangerous code."
-                        }
-                      ];
+                      y = addVulnerabilityDescriptions(doc, y, pageWidth, vulnerabilityDescriptions);
 
-                      vulnerabilityDescriptions.forEach(entry => {
-                        const wrappedTitle = doc.splitTextToSize(`• ${entry.title}`, pageWidth - 20);
-                        const wrappedDesc = doc.splitTextToSize(entry.desc, pageWidth - 20);
-
-                        if (y + wrappedTitle.length * 6 + wrappedDesc.length * 6 > doc.internal.pageSize.getHeight() - 10) {
-                          doc.addPage();
-                          y = 10;
-                        }
-
-                        doc.setFont(undefined, "bold");
-                        wrappedTitle.forEach(line => {
-                          doc.text(line, 10, y);
-                          y += 6;
-                        });
-
-                        doc.setFont(undefined, "normal");
-                        wrappedDesc.forEach(line => {
-                          doc.text(line, 14, y);
-                          y += 6;
-                        });
-
-                        y += 4;
-                      });
-
-                      const reportFile = `[Webbed]scan-log-${hostname}_${filenameSafeTimestamp}.pdf`;
+                      const reportFile = `[Webbed]Detailed-scan-log-${hostname}_${filenameSafeTimestamp}.pdf`;
                       doc.save(reportFile);
-
-                      // helper to convert logo to base64
-                      async function getBase64ImageFromUrl(imageUrl) {
-                        const blob = await fetch(imageUrl).then(res => res.blob());
-                        return new Promise((resolve, reject) => {
-                          const reader = new FileReader();
-                          reader.onloadend = () => resolve(reader.result);
-                          reader.onerror = reject;
-                          reader.readAsDataURL(blob);
-                        });
-                      }
                     });
                   });
                 };
-                
 
                 classificationBtn.style.display = "none";
 

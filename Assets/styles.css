@@ -85,6 +85,10 @@
     margin-top: 1em;
   }
 
+  #download-dlog {
+    margin-top: 1em;
+  }
+
 /* Scan UI */
 
   .loader-container {
@@ -401,7 +405,7 @@
 
 /* Start of download log button css */
 
-  #download-log {
+  #download-log, #download-dlog{
     display: inline-block;
     margin-right: 10px;
     background: #2276bf;
@@ -416,7 +420,12 @@
     text-align: center;
   }
 
-  #download-log:hover {
+  #download-dlog {
+    white-space: nowrap;
+    padding: 0 3px;
+  }
+
+  #download-log:hover, #download-dlog:hover {
     background: #fff;
     color: #003f83;
     box-shadow: 0 4px 4px rgba(83, 100, 255, 0.32);
@@ -598,6 +607,7 @@ html.dark-mode .remove-btn {
 }
 
 html.dark-mode #download-log,
+html.dark-mode #download-dlog,
 html.dark-mode .confirm-buttons button,
 html.dark-mode .alert-content button {
   background-color: #4466cc;
@@ -607,6 +617,7 @@ html.dark-mode #reset-lists:hover,
 html.dark-mode #whitelist-sort:hover,
 html.dark-mode #blacklist-sort:hover,
 html.dark-mode #download-log:hover,
+html.dark-mode #download-dlog:hover,
 html.dark-mode .confirm-buttons button:hover,
 html.dark-mode .alert-content button:hover {
   background-color: #2e4a99;
