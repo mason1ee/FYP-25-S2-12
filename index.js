@@ -953,6 +953,16 @@ function startScan() {
 
                       let count = 0;
                       const lines = [];
+                      const hasJSThreats = allThreats.some(th =>
+                      typeof th === "object" && (
+                        th.scriptIndex?.startsWith("external-") || th.scriptIndex?.startsWith("inline")
+                      )
+                      );
+
+                      if (hasJSThreats) {
+                        count++;
+                        lines.push(`[${count}] Suspicious or unsafe JavaScript activity detected.`);
+                      }
                       const headerKeywords = [
                         "Page is not served over HTTPS",
                         "Missing Content-Security-Policy",
