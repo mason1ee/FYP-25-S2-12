@@ -13,7 +13,10 @@ var trustedCDNs = [
   "cdn.jsdelivr.net",
   "ajax.googleapis.com",
   "code.jquery.com",
-  "stackpath.bootstrapcdn.com"
+  "stackpath.bootstrapcdn.com",
+  "unpkg.com",
+  "cdn.skypack.dev",
+  "ajax.aspnetcdn.com",
 ];
 
 // For pop out window scan
@@ -37,7 +40,7 @@ function isSuspiciousDomain(url) {
   try {
     const parsedUrl = new URL(url);
     const hostname = parsedUrl.hostname;
-    return !trustedCDNs.some(cdn => hostname.includes(cdn));
+    return !trustedCDNs.some(cdn => hostname === cdn || hostname.endsWith("." + cdn));
   } catch (e) {
     return true; // malformed URL
   }
@@ -276,7 +279,7 @@ var unsafeJSUsage = (code, label) => {
             processCode(code, label);
             //Check against trusted CDNs
             if (isSuspiciousDomain(src)) {
-              threats.push({ scriptIndex: label, url: `Suspicious JavaScript detected : ${src}` });
+              threats.push(`[${label}] Suspicious JavaScript source detected: ${src}`);
             } else {
               threats.push({ scriptIndex: label, url: src });
             }

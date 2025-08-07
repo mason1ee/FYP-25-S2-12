@@ -980,6 +980,12 @@ function startScan() {
                         count++;
                         lines.push(`[${count}] Total ${inlineCount} inline scripts`);
                       }
+
+                      if (externalCount > 0) {
+                        count++;
+                        lines.push(`[${count}] Total ${externalCount} external scripts detected`);
+                      }                      
+
                       y = addWrappedText(doc, lines.join("\n"), 10, y, pageWidth - 20, 11, 6);
 
                       y += 10;
@@ -1117,7 +1123,12 @@ function startScan() {
 
                       if (inlineCount > 0) {
                         count++;
-                        lines.push(`[${count}] Total ${inlineCount} inline scripts`);
+                        lines.push(`[${count}] Total ${inlineCount} inline scripts detected`);
+                      }
+
+                      if (externalCount > 0) {
+                        count++;
+                        lines.push(`[${count}] Total ${externalCount} external scripts detected`);
                       }
 
                       if (failedFetchCount > 0) {
