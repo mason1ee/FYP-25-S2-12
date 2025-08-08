@@ -541,19 +541,6 @@ function resetScanContainer() {
 let allThreats = [];
 let totalSeverityScore = 0;
 
-async function printDomainScore() {
-  let currentTab = await getActiveHttpTab();
-  let url = "";
-
-  try {
-    url = new URL(currentTab.url)
-  } catch (e) {
-    console.log("Error: " + e);
-  }
-
-  console.log(url.hostname + "'s Total Potential Issues: " + allThreats.length);
-  console.log(url.hostname + "'s Score: " + totalSeverityScore);
-}
 function setBadge(targetTabId, score, isSecure) {
   chrome.action.setBadgeText({ text: score.toString(), tabId: targetTabId });
 
@@ -848,6 +835,20 @@ function startScan() {
                   vulnCountText.textContent = `${displayedIssueCount} issues detected.`;
                 } else {
                   vulnCountText.textContent = "";
+                }
+
+                async function printDomainScore() {
+                  let currentTab = await getActiveHttpTab();
+                  let url = "";
+
+                  try {
+                    url = new URL(currentTab.url)
+                  } catch (e) {
+                    console.log("Error: " + e);
+                  }
+
+                  console.log(url.hostname + "'s Total Potential Issues: " + displayedIssueCount);
+                  console.log(url.hostname + "'s Score: " + totalSeverityScore);
                 }
 
                 // Continue with existing logic for displaying detailed threats, download button etc.
