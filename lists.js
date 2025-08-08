@@ -1,6 +1,6 @@
 import { getActiveHttpTab } from './background.js';
 
-let whitelistFilterInput, blacklistFilterInput, whitelistBody, blacklistBody, whitelistSortBtn, blacklistSortBtn, whitelistBtn, blacklistBtn;
+let blacklistFilterInput, blacklistBody, blacklistSortBtn;
 let whitelist = [], blacklist = [];
 
 export async function reloadTabsMatchingOriginalTabDomain() {
@@ -103,89 +103,13 @@ document.addEventListener("DOMContentLoaded", () => {
     whitelist = data.whitelist || [];
     blacklist = data.blacklist || [];
 
-    whitelistBody = document.querySelector("#whitelist tbody");
     blacklistBody = document.querySelector("#blacklist tbody");
 
-    whitelistFilterInput = document.getElementById("whitelist-filter");
     blacklistFilterInput = document.getElementById("blacklist-filter");
 
-    whitelistSortBtn = document.getElementById("whitelist-sort");
     blacklistSortBtn = document.getElementById("blacklist-sort");
 
-    whitelistBtn = document.getElementById("whitelistBtn");
-    blacklistBtn = document.getElementById("blacklistBtn");
-
-    whitelistBtn.addEventListener("click", async () => {
-      chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, async (response) => {
-        if (response.error) {
-          showCustomAlert(response.error, 5000);
-          return;
-        }
-
-        const hostname = response.hostname;
-
-        chrome.storage.local.get({ whitelist: [], blacklist: [] }, async (data) => {
-          const whitelist = data.whitelist;
-          const blacklist = data.blacklist;
-
-          if (blacklist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already blacklisted and cannot be added to the whitelist.`, 3000);
-            return;
-          }
-
-          if (whitelist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already whitelisted.`, 3000);
-            return;
-          }
-
-          whitelist.push(hostname);
-          chrome.storage.local.set({ whitelist }, async () => {
-            showCustomAlert(`${hostname} added to Whitelist! Refreshing page...`, 3000, false);
-            await reloadTabsMatchingOriginalTabDomain();
-          });
-        });
-      });
-    });
-
-    blacklistBtn.addEventListener("click", async () => {
-      chrome.runtime.sendMessage({ type: "getActiveTabHostname" }, async (response) => {
-        if (response.error) {
-          showCustomAlert(response.error, 5000);
-          return;
-        }
-
-        const hostname = response.hostname;
-
-        chrome.storage.local.get({ whitelist: [], blacklist: [] }, async (data) => {
-          const whitelist = data.whitelist;
-          const blacklist = data.blacklist;
-
-          if (whitelist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already whitelisted and cannot be added to the blacklist.`, 3000);
-            return;
-          }
-
-          if (blacklist.includes(hostname)) {
-            showCustomAlert(`${hostname} is already blacklisted.`, 3000);
-            return;
-          }
-
-          blacklist.push(hostname);
-          chrome.storage.local.set({ blacklist }, async () => {
-            showCustomAlert(`${hostname} added to Blacklist! Refreshing page...`, 3000, false);
-            await reloadTabsMatchingOriginalTabDomain();
-          });
-        });
-      });
-    });
-
-    whitelistFilterInput.addEventListener("input", populateTables);
     blacklistFilterInput.addEventListener("input", populateTables);
-
-    whitelistSortBtn.addEventListener("click", () => {
-      toggleSortOrder(whitelistSortBtn);
-      populateTables();
-    });
 
     blacklistSortBtn.addEventListener("click", () => {
       toggleSortOrder(blacklistSortBtn);
@@ -343,16 +267,7 @@ function clearTable(tableBody) {
 }
 
 function populateTables() {
-  clearTable(whitelistBody);
   clearTable(blacklistBody);
-
-  addRows(
-    whitelistBody,
-    whitelist,
-    whitelistFilterInput.value,
-    whitelistSortBtn.getAttribute("data-order"),
-    "whitelist"
-  );
 
   addRows(
     blacklistBody,

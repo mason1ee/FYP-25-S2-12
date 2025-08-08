@@ -10,18 +10,14 @@ const downloadBtn = document.getElementById("download-log");
 const downloadDBtn = document.getElementById("download-dlog");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
-const classificationBtn = document.getElementById("classification-buttons");
 const scanTabBtn = document.getElementById("scan-tab-btn");
 const settingsTabBtn = document.getElementById("settings-tab-btn");
 const scanTab = document.getElementById("scan-tab");
 const settingsTab = document.getElementById("settings-tab");
 const sitesTabBtn = document.getElementById("sites-tab-btn");
 const sitesSection = document.getElementById("sites-section");
-const whitelistTabBtn = document.getElementById("whitelist-tab-btn");
 const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
-const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
-const blacklistBtn = document.getElementById("blacklistBtn");
 const blockerStatusText = document.getElementById("blocker-status-text");
 scanContainer.style.display = "none";
 
@@ -371,9 +367,7 @@ sitesTabBtn.addEventListener("click", () => {
   sitesSection.style.display = "block";
   scanTabBtn.classList.remove("active");
   settingsTabBtn.classList.remove("active");
-  whitelistTab.style.display = "none";
   blacklistTab.style.display = "block";
-  whitelistTabBtn.classList.add("active");
   blacklistTabBtn.classList.remove("active");
   sitesTabBtn.classList.add("active");
 });
@@ -393,17 +387,9 @@ darkModeToggle.addEventListener("change", () => {
 });
 
 /* Website list Tab Navigation*/
-whitelistTabBtn.addEventListener("click", () => {
-  whitelistTab.style.display = "none";
-  blacklistTab.style.display = "block";
-  whitelistTabBtn.classList.add("active");
-  blacklistTabBtn.classList.remove("active");
-});
 
 blacklistTabBtn.addEventListener("click", () => {
-  whitelistTab.style.display = "none";
   blacklistTab.style.display = "block";
-  whitelistTabBtn.classList.remove("active");
   blacklistTabBtn.classList.add("active");
 });
 
