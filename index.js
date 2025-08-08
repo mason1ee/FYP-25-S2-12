@@ -666,7 +666,7 @@ function startScan() {
                   "Missing Strict-Transport-Security": 3,
                   "Missing X-Content-Type-Options": 1,
                   "Missing X-Frame-Options": 1,
-                  "Page is not served over HTTPS": 30,
+                  "Page is not served over HTTPS": 20,
                 };
 
                 if (protocol !== "https:") {
@@ -706,7 +706,7 @@ function startScan() {
 
                 printDomainScore();
                 
-                if (totalSeverityScore >= 30) {
+                if (totalSeverityScore >= 20) {
                   statusMessage = "Website has critical vulnerabilities";
                   statusColor = "red";
                   isSecure = false;
@@ -1181,7 +1181,7 @@ function startScan() {
                     }
 
                     // Add to correct list based on severity score
-                    if (totalSeverityScore >= 30) {
+                    if (totalSeverityScore >= 20) {
                       chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
                         if (!blacklist.includes(hostname)) {
                           await sleep(2000);
