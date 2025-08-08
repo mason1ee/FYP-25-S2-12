@@ -302,11 +302,6 @@ async function updateUIBasedOnActiveTab() {
       // Set status to "Not Applicable"
       blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
       blockerStatusText.classList.remove("active", "inactive");
-    
-      // Delete if removing blacklist button
-      // if (classificationBtn) {
-      //   classificationBtn.style.display = "none";
-      // }
 
       return;
     }
@@ -321,11 +316,6 @@ async function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.toggle("active", isBlocked);
       blockerStatusText.classList.toggle("inactive", !isBlocked);
       blockerStatusText.classList.remove("na");
-
-      // Delete if removing blacklist button
-      // if (classificationBtn) {
-      //   classificationBtn.style.display = "none";
-      // }
     });
   } catch (err) {
     console.error("Failed to get active tab: ", err);
@@ -524,9 +514,6 @@ function resetScanContainer() {
   downloadBtn.style.display = "none";
   downloadDBtn.style.display = "none"
 
-  // Delete if removing blacklist button
-  //classificationBtn.style.display = "none";
-
   // Clear any intervals and listeners
   if (interval) clearInterval(interval);
   if (onScanResult) {
@@ -673,12 +660,12 @@ function startScan() {
                 // Define severity scores for header issues and protocol issues
                 function getSeverityScore(threat) {
                   const severityScores = {
-                  "Missing Content-Security-Policy": 2,
-                  "Missing Strict-Transport-Security": 3,
-                  "Missing X-Content-Type-Options": 1,
-                  "Missing X-Frame-Options": 1,
-                  "Page is not served over HTTPS": 30,
-                  "inline": 0.001
+                    "Page is not served over HTTPS": 30,
+                    "Missing Content-Security-Policy": 2,
+                    "Missing Strict-Transport-Security": 3,
+                    "Missing X-Content-Type-Options": 1,
+                    "Missing X-Frame-Options": 1,
+                    "inline": 0.001
                   };
                   return severityScores[threat] || 0;
                 }
@@ -696,10 +683,9 @@ function startScan() {
                 if (!headers["strict-transport-security"])
                   headerThreats.push("Missing Strict-Transport-Security");
 
-
                 headerThreats.forEach(threat => {
                   if (typeof threat === "string") {
-                    totalSeverityScore += getSeverityScore[threat] || 1;
+                    totalSeverityScore += getSeverityScore(threat) || 1;
                   }
                 });
 
@@ -725,7 +711,7 @@ function startScan() {
 
                 filteredContentThreats.forEach(threat => {
                   if (typeof threat === "string") {
-                    totalSeverityScore += getSeverityScore[threat] || 0.001;
+                    totalSeverityScore += getSeverityScore(threat) || 0.001;
                   } else if (threat && typeof threat === "object" && threat.type) {
                     totalSeverityScore += getSeverityScore[threat.type] || 0.001;
                   }
@@ -741,12 +727,12 @@ function startScan() {
                 // See from Chrome console
                 printDomainScore();
                 
-                if (totalSeverityScore >= 30) {
+                if (totalSeverityScore >= 15) {
                   statusMessage = "Website has critical vulnerabilities";
                   statusColor = "red";
                   isSecure = false;
                   setBadge(tabId, totalSeverityScore, false);
-                } else if (totalSeverityScore >= 10) {
+                } else if (totalSeverityScore >= 8) {
                   statusMessage = "Website has some security warnings.";
                   statusColor = "orange";
                   isSecure = true; // Warning but not fully insecure
@@ -1227,6 +1213,7 @@ function startScan() {
                     }
 
                     // Add to correct list based on severity score
+
                     if (totalSeverityScore >= 15) {
                       chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
                         if (!blacklist.includes(hostname)) {
@@ -1251,12 +1238,6 @@ function startScan() {
                 function sleep(ms) {
                   return new Promise(resolve => setTimeout(resolve, ms));
                 }
-
-                // Delete if removing blacklist button
-                //classificationBtn.style.display = "none";
-
-                // For manual blacklist button
-                //blacklistBtn.style.display = "inline-block";
 
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
