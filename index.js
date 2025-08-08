@@ -1226,7 +1226,7 @@ function startScan() {
                     }
 
                     // Add to correct list based on severity score
-                    if (totalSeverityScore >= 30) {
+                    if (totalSeverityScore >= 20) {
                       chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
                         if (!blacklist.includes(hostname)) {
                           await sleep(2000);
