@@ -4,12 +4,12 @@
 
 ## CSIT-25-S2-22: Client-Side Script Security Inspector
 
+- _metadata
+    - For JS Blocker.
+
 - Assets
     - styles.css -
     Styles for the extension written here.
-
-- _metadata
-    - For JS Blocker.
 
 - libs
     - acorn.min.js -
@@ -17,6 +17,10 @@
 
     - jspdf.umd.min.js -
     External library used for generation of PDF report.
+
+- utils
+    - alerts.js -
+    Template to display custom alerts in the extension.
 
 - background.js -
 Script running in the background. Initializes default whitelist and blacklist on installation via chrome.storage.local, etc.
