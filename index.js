@@ -642,15 +642,6 @@ function startScan() {
                   .map(th => th.scriptIndex)
               ).size;
 
-              const hasJSThreats = allThreats.some(th =>
-                typeof th === "object" && (
-                  th.scriptIndex?.startsWith("external-") || th.scriptIndex?.startsWith("inline")
-                )
-              );
-              if (hasJSThreats) {
-                summaryIssues.push("Suspicious or unsafe JavaScript activity detected.");
-              }
-
               const protocol = message.protocol || "";
 
               chrome.runtime.sendMessage({ action: "getSecurityHeaders" }, (res) => {
