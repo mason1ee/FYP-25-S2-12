@@ -21,23 +21,26 @@
 - background.js -
 Script running in the background. Initializes default whitelist and blacklist on installation via chrome.storage.local, etc.
 
+- blacklist-overlay.js -
+Overlay to indicate when a site has been blacklisted.
+
 - content.js -
-The scanning logic JavaScript for the extension. The main scanning function is located in index.js but the scanning logic is all inside content.js
+Contains the scanning logic for the extension. The main scanning function is located in index.js, but the scanning details reside in this file.
 
 - index.html -
-The main popup(UI) of the extension.
+The main popup UI of the extension.
 
 - index.js -
-Main JavaScript of the extension. The necessary functions of the extension is written in here.
+Main JavaScript file for the extension. Contains core functions.
 
 - lists.js - 
-Displays and filters the whitelist and blacklist in a table format, etc.
+Displays and filters the whitelist and blacklist in a table format.
 
 - manifest.json -
-To declare the name, version, permissions needed for the extension and the various scripts that we're using.
+Declares the name, version, permissions needed for the extension and the various scripts that we're using.
 
 - preload-darkmode.js -
-JS script to preload darkmode if extension was set to dark mode previously.
+Preloads dark mode if previously enabled in the extension.
 
 - rules.json -
-Rules for JS Blocker.
+Contains rules for JS Blocker.
