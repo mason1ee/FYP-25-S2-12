@@ -653,9 +653,9 @@ function startScan() {
                   headerThreats.push("Page is not served over HTTPS");
                 }
                 if (!headers["content-security-policy"]) headerThreats.push("Missing Content-Security-Policy");
+                if (!headers["strict-transport-security"]) headerThreats.push("Missing Strict-Transport-Security");
                 if (!headers["x-content-type-options"]) headerThreats.push("Missing X-Content-Type-Options");
                 if (!headers["x-frame-options"]) headerThreats.push("Missing X-Frame-Options");
-                if (!headers["strict-transport-security"]) headerThreats.push("Missing Strict-Transport-Security");
 
                 // Reset score before tallying
                 totalSeverityScore = 0;
