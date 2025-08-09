@@ -511,9 +511,6 @@ function resetScanContainer() {
   isScanning = false;
 }
 
-let allThreats = [];
-let totalSeverityScore = 0;
-
 function setBadge(targetTabId, score, isSecure) {
   chrome.action.setBadgeText({ text: score.toString(), tabId: targetTabId });
 
@@ -523,6 +520,11 @@ function setBadge(targetTabId, score, isSecure) {
     chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: targetTabId });
   }
 }
+
+let allThreats = [];
+let totalSeverityScore = 0;
+const blacklistSeverityscore = 30;
+let summaryIssues = [];
 
 function startScan() {
   totalSeverityScore = 0;
@@ -605,23 +607,22 @@ function startScan() {
 
               const contentThreats = message.threats || [];
 
+              // Filter inline threats separately but keep them in the list if present
               const hasInline = contentThreats.some(threat => threat.type === "inline");
-
-              // Filter out inline threats for separate handling
               const filteredContentThreats = contentThreats.filter(threat => threat.type !== "inline");
-
               if (hasInline) {
                 filteredContentThreats.push({ type: "inline", description: "Inline threat detected" });
               }
 
-              const summaryIssues = [];
-              const inlineCount = countInlineScripts(allThreats);
-              function countInlineScripts(allThreats) {
-                return allThreats.filter(th =>
+              // Helper function moved out of main flow for clarity
+              function countInlineScripts(threats) {
+                return threats.filter(th =>
                   (typeof th === "string" && th.includes("inline-")) ||
                   (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
                 ).length;
               }
+
+              const inlineCount = countInlineScripts(allThreats);
               const externalCount = new Set(
                 allThreats
                   .filter(th => typeof th === "object" && th.scriptIndex?.startsWith("external-"))
@@ -634,77 +635,58 @@ function startScan() {
                 const headers = res?.headers || {};
                 const headerThreats = [];
 
-                // Define severity scores for header issues and protocol issues
+                const severityScores = {
+                  "Page is not served over HTTPS": blacklistSeverityscore,
+                  "Missing Content-Security-Policy": 1,
+                  "Missing Strict-Transport-Security": 2,
+                  "Missing X-Content-Type-Options": 1,
+                  "Missing X-Frame-Options": 1,
+                  "inline": 0.001
+                };
+
                 function getSeverityScore(threat) {
-                  const severityScores = {
-                    "Page is not served over HTTPS": 30,
-                    "Missing Content-Security-Policy": 2,
-                    "Missing Strict-Transport-Security": 3,
-                    "Missing X-Content-Type-Options": 1,
-                    "Missing X-Frame-Options": 1,
-                    "inline": 0.001
-                  };
                   return severityScores[threat] || 0;
                 }
 
+                // Check protocol and headers, add corresponding threats
                 if (protocol !== "https:") {
                   headerThreats.push("Page is not served over HTTPS");
                 }
+                if (!headers["content-security-policy"]) headerThreats.push("Missing Content-Security-Policy");
+                if (!headers["x-content-type-options"]) headerThreats.push("Missing X-Content-Type-Options");
+                if (!headers["x-frame-options"]) headerThreats.push("Missing X-Frame-Options");
+                if (!headers["strict-transport-security"]) headerThreats.push("Missing Strict-Transport-Security");
 
-                if (!headers["content-security-policy"])
-                  headerThreats.push("Missing Content-Security-Policy");
-                if (!headers["x-content-type-options"])
-                  headerThreats.push("Missing X-Content-Type-Options");
-                if (!headers["x-frame-options"])
-                  headerThreats.push("Missing X-Frame-Options");
-                if (!headers["strict-transport-security"])
-                  headerThreats.push("Missing Strict-Transport-Security");
+                // Reset score before tallying
+                totalSeverityScore = 0;
 
+                // Add header threats severity
                 headerThreats.forEach(threat => {
-                  if (typeof threat === "string") {
-                    totalSeverityScore += getSeverityScore(threat) || 1;
-                  }
+                  totalSeverityScore += getSeverityScore(threat) || 1;
                 });
 
-                // Combine all threats (headers + content)
-                allThreats = [...filteredContentThreats, ...headerThreats];
-
-                allThreats.forEach(threat => {
-                  if (typeof threat === "string") {
-                    // Headers or inline keyword
-                    if (threat.toLowerCase().includes("inline")) {
-                       totalSeverityScore += 0.001;
-                    }
-                  } 
-                  else if (typeof threat === "object") {
-                    // Inline scripts stored as objects
-                    if (threat.scriptIndex?.startsWith("inline")) {
-                       totalSeverityScore += 0.001;
-                    } else {
-                      totalSeverityScore += getSeverityScore(threat.type || "");
-                    }
-                  }
-                });
-
+                // Add content threats severity - use filteredContentThreats only once
                 filteredContentThreats.forEach(threat => {
                   if (typeof threat === "string") {
                     totalSeverityScore += getSeverityScore(threat) || 0.001;
                   } else if (threat && typeof threat === "object" && threat.type) {
-                    totalSeverityScore += getSeverityScore[threat.type] || 0.001;
+                    totalSeverityScore += getSeverityScore(threat.type) || 0.001;
                   }
                 });
 
+                // Use filteredContentThreats as combined threats for further processing
+                allThreats = [...filteredContentThreats, ...headerThreats];
+
                 totalSeverityScore = Math.ceil(totalSeverityScore);
 
-                // Determine status based on severity score thresholds
+                // Determine status based on severity
                 let statusMessage = "";
                 let statusColor = "";
                 let isSecure = false;
 
-                // See from Chrome console
                 printDomainScore();
-                
-                if (totalSeverityScore >= 15) {
+
+                if (totalSeverityScore >= blacklistSeverityscore) {
                   statusMessage = "Website has critical vulnerabilities";
                   statusColor = "red";
                   isSecure = false;
@@ -712,16 +694,9 @@ function startScan() {
                 } else if (totalSeverityScore >= 8) {
                   statusMessage = "Website has some security warnings.";
                   statusColor = "orange";
-                  isSecure = true; // Warning but not fully insecure
+                  isSecure = true;
                   setBadge(tabId, totalSeverityScore, true);
-                } 
-                // else if (totalSeverityScore <= 7) {
-                //   statusMessage = "Website appears secure.";
-                //   statusColor = "green";
-                //   isSecure = true;
-                //   setBadge(tabId, totalSeverityScore, true);
-                // } 
-                else {
+                } else {
                   statusMessage = "Website appears secure.";
                   statusColor = "green";
                   isSecure = true;
@@ -732,14 +707,13 @@ function startScan() {
                 resultText.style.color = statusColor;
 
                 const lines = [];
-
                 let count = 0;
                 const skippedLargeScriptUrls = [];
 
                 const failedFetchCount = allThreats.filter(th =>
-                        typeof th === "object" &&
-                        th.scriptIndex?.startsWith("external-") &&
-                        th.error?.includes("Fetch error: Failed to fetch")
+                  typeof th === "object" &&
+                  th.scriptIndex?.startsWith("external-") &&
+                  th.error?.includes("Fetch error: Failed to fetch")
                 ).length;
 
                 allThreats.forEach(th => {
@@ -752,9 +726,7 @@ function startScan() {
                     const err = th.error ? ` - ${th.error}` : "";
 
                     if (th.error?.includes("Skipped large script")) {
-                      if (src !== "n/a") {
-                        skippedLargeScriptUrls.push(src);
-                      }
+                      if (src !== "n/a") skippedLargeScriptUrls.push(src);
                       return; // skip adding as individual line
                     }
 
@@ -1191,7 +1163,7 @@ function startScan() {
 
                     // Add to correct list based on severity score
 
-                    if (totalSeverityScore >= 15) {
+                    if (totalSeverityScore >= blacklistSeverityscore) {
                       chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
                         if (!blacklist.includes(hostname)) {
                           await sleep(2000);
