@@ -997,7 +997,7 @@ function startScan() {
                         summaryIssues.push(`Total ${externalCount} external scripts detected`);
                       }
 
-                      if (summaryIssues.length >= 1) {
+                      if (displayedIssueCount > summaryIssues.length) {
                         summaryIssues.push(`${displayedIssueCount - summaryIssues.length - 1} other detailed issues. [See in detailed report]`);
                       }
 
