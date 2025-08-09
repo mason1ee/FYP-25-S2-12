@@ -997,6 +997,10 @@ function startScan() {
                         summaryIssues.push(`Total ${externalCount} external scripts detected`);
                       }
 
+                      if (summaryIssues.length >= 1) {
+                        summaryIssues.push(`${displayedIssueCount - summaryIssues.length - 1} other detailed issues. [See in detailed report]`);
+                      }
+
                       // Number the list
                       const numberedSummary = summaryIssues.map((text, idx) => `[${idx + 1}] ${text}`);
 
