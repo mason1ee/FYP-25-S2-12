@@ -160,7 +160,7 @@ function initializeExtension() {
 
   function updateStateAndMaybeScan(tab) {
     if (!tab || !isValidUrl(tab.url)) {
-      console.log("⛔ Invalid or missing tab:", tab);
+      console.log("Invalid or missing tab:", tab);
       return;
     }
 
@@ -186,7 +186,7 @@ function initializeExtension() {
     debounceTimer = setTimeout(() => {
       lastTabId = tab.id;
       lastUrl = tab.url;
-      console.log("🟢 Debounced startScan for:", tab.url);
+      console.log("Debounced startScan for:", tab.url);
       updateUIBasedOnActiveTab();
       startScan();
     }, DEBOUNCE_DELAY);
@@ -637,7 +637,7 @@ function startScan() {
 
                 const severityScores = {
                   "Page is not served over HTTPS": blacklistSeverityscore,
-                  "Missing Content-Security-Policy": 1,
+                  "Missing Content-Security-Policy": 2,
                   "Missing Strict-Transport-Security": 2,
                   "Missing X-Content-Type-Options": 1,
                   "Missing X-Frame-Options": 1,
