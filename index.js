@@ -687,7 +687,7 @@ function startScan() {
                 printDomainScore();
 
                 if (totalSeverityScore >= blacklistSeverityscore) {
-                  statusMessage = "Website has critical vulnerabilities";
+                  statusMessage = "Website has critical vulnerabilities!";
                   statusColor = "red";
                   isSecure = false;
                   setBadge(tabId, totalSeverityScore, false);
