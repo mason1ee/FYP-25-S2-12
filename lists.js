@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("reset-lists").addEventListener("click", () => {
       showCustomConfirm(
-        "Are you sure you want to reset all lists?",
+        "Are you sure you want to reset Blacklist?",
         async () => {
           try {
             const defaultWhitelist = ["cdn.jsdelivr.net", "cdnjs.cloudflare.com"];
