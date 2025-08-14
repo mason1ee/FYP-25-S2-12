@@ -230,6 +230,7 @@ function initializeExtension() {
     darkModeToggle.checked = isDarkMode;
     localStorage.setItem("darkMode", isDarkMode);
   });
+  
   // JS Blocker Toggle setup
   chrome.storage.local.get("jsBlockerTogglePosition", (result) => {
     let savedValue = result.jsBlockerTogglePosition;
