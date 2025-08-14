@@ -230,8 +230,6 @@ function initializeExtension() {
     darkModeToggle.checked = isDarkMode;
     localStorage.setItem("darkMode", isDarkMode);
   });
-}
-
   // JS Blocker Toggle setup
   chrome.storage.local.get("jsBlockerTogglePosition", (result) => {
     let savedValue = result.jsBlockerTogglePosition;
@@ -243,6 +241,7 @@ function initializeExtension() {
 
     jsBlockerToggle.checked = savedValue;
   });
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'requestStartScan') {
