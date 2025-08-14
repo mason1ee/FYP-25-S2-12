@@ -2,6 +2,7 @@ import { getActiveHttpTab } from "./background.js";
 import { reloadTabsMatchingOriginalTabDomain } from './lists.js';
 const popoutButton = document.getElementById("popout-btn");
 const darkModeToggle = document.getElementById("dark-mode-toggle");
+const jsBlockerToggle = document.getElementById("js-blocker-toggle");
 const progressBar = document.getElementById("progress-bar");
 const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
@@ -221,7 +222,7 @@ function initializeExtension() {
   // Initial scan
   checkActiveTabAndScan();
 
-  // Dark mode setup
+  // Dark Mode setup
   chrome.storage.local.get("darkMode", ({ darkMode }) => {
     const isDarkMode = Boolean(darkMode);
     const root = document.documentElement;
@@ -230,6 +231,18 @@ function initializeExtension() {
     localStorage.setItem("darkMode", isDarkMode);
   });
 }
+
+  // JS Blocker Toggle setup
+  chrome.storage.local.get("jsBlockerTogglePosition", (result) => {
+    let savedValue = result.jsBlockerTogglePosition;
+
+    if (savedValue === undefined) {
+      savedValue = true;
+      chrome.storage.local.set({ jsBlockerTogglePosition: savedValue });
+    }
+
+    jsBlockerToggle.checked = savedValue;
+  });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'requestStartScan') {
@@ -384,6 +397,11 @@ darkModeToggle.addEventListener("change", () => {
   localStorage.setItem("darkMode", enabled);
 
   applyDarkModeStylesToTable();
+});
+
+jsBlockerToggle.addEventListener("change", () => {
+  const currentValue = jsBlockerToggle.checked;
+  chrome.storage.local.set({ jsBlockerTogglePosition: currentValue });
 });
 
 /* Website list Tab Navigation*/
@@ -1166,25 +1184,30 @@ function startScan() {
                     }
 
                     // Add to correct list based on severity score
-
-                    if (totalSeverityScore >= blacklistSeverityscore) {
-                      chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
-                        if (!blacklist.includes(hostname)) {
-                          await sleep(2000);
-                          window.showCustomAlert("Website flagged! Blacklisting...");
-                          blacklist.push(hostname);
-                          await sleep(1000);
-                          reloadTabsMatchingOriginalTabDomain();
-                          chrome.storage.local.set({ blacklist });
-                          return;
-                        } else{
-                          return;
+                    chrome.storage.local.get(["jsBlockerTogglePosition"], ({ jsBlockerTogglePosition }) => {
+                      if (jsBlockerTogglePosition) {
+                        if (totalSeverityScore >= blacklistSeverityscore) {
+                          chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
+                            if (!blacklist.includes(hostname)) {
+                              await sleep(2000);
+                              window.showCustomAlert("Website flagged! Blacklisting...");
+                              blacklist.push(hostname);
+                              await sleep(1000);
+                              reloadTabsMatchingOriginalTabDomain();
+                              chrome.storage.local.set({ blacklist });
+                              return;
+                            } else {
+                              return;
+                            }
+                          });
+                        } else {
+                          whitelist.push(hostname);
+                          chrome.storage.local.set({ whitelist });
                         }
-                      });
-                    } else {
-                      whitelist.push(hostname);
-                      chrome.storage.local.set({ whitelist });
-                    }
+                      } else {
+                        return;
+                      }
+                    });
                   });
                 });
 
