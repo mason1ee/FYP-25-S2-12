@@ -1245,7 +1245,6 @@ function placeCreditsBanner() {
     }
   });
 
-  // Append a clone or the original to each section that needs it:
   scanTab.appendChild(banner.cloneNode(true));
   settingsTab.appendChild(banner.cloneNode(true));
   sitesSection.appendChild(banner.cloneNode(true));

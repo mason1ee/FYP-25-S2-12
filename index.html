@@ -1,145 +1,145 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <link rel="stylesheet" href="Assets/styles.css">
-  <title>Webbed | FYP-25-S2-12</title>
-  <link rel="icon" href="Assets/logo/logo16x16.png" type="image/png">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-</head>
-<body>
-  <!-- Starting screen -->
-  <div id="splash-screen">
-    <img src="Assets/logo/logo128x128.png" alt="Webbed Logo">
-    <p>Loading Webbed...</p>
-  </div>
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="Assets/styles.css">
+    <title>Webbed | FYP-25-S2-12</title>
+    <link rel="icon" href="Assets/logo/logo16x16.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <!-- Starting screen -->
+    <div id="splash-screen">
+      <img src="Assets/logo/logo128x128.png" alt="Webbed Logo">
+      <p>Loading Webbed...</p>
+    </div>
 
-  <button id="popout-btn" title="Pop out to a new window" aria-label="Pop out">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-      viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-      class="feather feather-external-link">
-      <path d="M18 3h3v3"></path>
-      <path d="M21 3l-9 9"></path>
-      <path d="M15 3h-4a2 2 0 0 0-2 2v4"></path>
-      <path d="M3 21h18"></path>
-    </svg>
-  </button>
-  <div class="tab-nav">
-    <button class="nav-tab active" id="scan-tab-btn">Scan</button>
-    <button class="nav-tab" id="settings-tab-btn">Settings</button>
-    <button class="nav-tab" id="sites-tab-btn">Websites</button>
-  </div>
+    <button id="popout-btn" title="Pop out to a new window" aria-label="Pop out">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+        class="feather feather-external-link">
+        <path d="M18 3h3v3"></path>
+        <path d="M21 3l-9 9"></path>
+        <path d="M15 3h-4a2 2 0 0 0-2 2v4"></path>
+        <path d="M3 21h18"></path>
+      </svg>
+    </button>
+    <div class="tab-nav">
+      <button class="nav-tab active" id="scan-tab-btn">Scan</button>
+      <button class="nav-tab" id="settings-tab-btn">Settings</button>
+      <button class="nav-tab" id="sites-tab-btn">Websites</button>
+    </div>
 
-  <!-- Scan Tab -->
-  <div id="scan-tab">
-    <h2>Script Security Inspector</h2> 
-    <br>
-    <p id="current-domain"> Loading domain...</p>
+    <!-- Scan Tab -->
+    <div id="scan-tab">
+      <h2>Script Security Inspector</h2> 
+      <br>
+      <p id="current-domain"> Loading domain...</p>
 
-    <div id="scan-container" style="display: none;">
-      <div id="progress-container">
-        <div id="progress-bar"></div>
+      <div id="scan-container" style="display: none;">
+        <div id="progress-container">
+          <div id="progress-bar"></div>
+        </div>
+        <p id="scan-status-msg" style="display: none;"></p>
+        <p id="status-text">Waiting to scan...</p>
+        <p id="scan-result"></p>
+        <p id="vuln-count"></p>
+        <ol id="detailed-results"></ol>
+
+        <!-- Download Log Button (hidden until after scan) -->
+        <button id="download-log" style="display: none;">
+          Download Report
+        </button>
+        <button id="download-dlog" style="display: none;">
+          Download Detailed Report
+        </button>
+      
+      </div> <br>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="section" style="display: none;">
+
+      <div class="setting-item" style="margin-bottom: 4px;">
+        <span>
+          Dark Mode
+        </span>
+        <label class="switch">
+          <input type="checkbox" id="dark-mode-toggle">
+          <span class="slider"></span>
+        </label>
       </div>
-      <p id="scan-status-msg" style="display: none;"></p>
-      <p id="status-text">Waiting to scan...</p>
-      <p id="scan-result"></p>
-      <p id="vuln-count"></p>
-      <ol id="detailed-results"></ol>
 
-      <!-- Download Log Button (hidden until after scan) -->
-      <button id="download-log" style="display: none;">
-        Download Report
-      </button>
-      <button id="download-dlog" style="display: none;">
-        Download Detailed Report
-      </button>
-     
-    </div> <br>
-  </div>
+      <div class="setting-item" style="margin-bottom: 4px;">
+        <span>
+          Automatic JS Blocker
+        </span>
+        <label class="switch">
+          <input type="checkbox" id="js-blocker-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
 
-  <!-- Settings Tab -->
-  <div id="settings-tab" class="section" style="display: none;">
-    <!-- Dark Mode switch -->
-    <div class="setting-item" style="margin-bottom: 4px;">
-      <span>
-        Dark Mode
-      </span>
-      <label class="switch">
-        <input type="checkbox" id="dark-mode-toggle">
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-item" style="margin-bottom: 4px;">
-      <span>
-        Automatic JS Blocker
-      </span>
-      <label class="switch">
-        <input type="checkbox" id="js-blocker-toggle">
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- JS Blocker status -->
-    <div id="blocker-status" style="margin-bottom: 20px;">
-      <input type="checkbox" id="toggle-js-blocker" hidden>
-      JS Blocker: <span id="blocker-status-text">Loading...</span>
-    </div>
-  </div>
-
-  <!-- Websites Tab -->
-  <div id="sites-section" class="section" style="display: none;">
-    <h2>Manage Blacklist</h2>
-    <button id="reset-lists">Reset Blacklist</button>
-
-    <div class="tab-nav" style="display: none;">
-      <button class="nav-tab" id="blacklist-tab-btn">Untrusted</button>
-    </div>
-
-    <div id="blacklist-tab" style="display: block;" class="list-box">
-      <input type="text" id="blacklist-filter" placeholder="Filter blacklist...">
-      <button id="blacklist-sort" data-order="asc">Sort Asc</button>
-      <table id="blacklist">
-        <thead>
-          <tr><th colspan="2">Blacklist</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <div id="credits-banner">
-      <span>Webbed</span>
-      <img src="Assets/logo/logo16x16.png">
-      <br>
-      <span>Client-Side Script Security Inspector</span>
-      <br>
-      <span>FYP-25-S2-12</span>
-    </div>
-
-  </div>
-
-  <div id="custom-alert" class="hidden">
-    <div class="alert-content">
-      <span id="alert-message"></span>
-      <button id="alert-close">OK</button>
-    </div>
-  </div>
-
-  <div id="custom-confirm" class="hidden custom-dialog">
-    <div class="confirm-content">
-      <span id="confirm-message"></span>
-      <div class="confirm-buttons">
-        <button id="confirm-yes">Yes</button>
-        <button id="confirm-no">No</button>
+      <!-- JS Blocker status -->
+      <div id="blocker-status" style="margin-bottom: 20px;">
+        <input type="checkbox" id="toggle-js-blocker" hidden>
+        JS Blocker: <span id="blocker-status-text">Loading...</span>
       </div>
     </div>
-  </div>
 
-  <script src="utils/alerts.js"></script>
-  <script type="module" src="index.js"></script>
-  <script type="module" src="lists.js"></script> <!-- for list functionality -->
-  <script src="libs/jspdf.umd.min.js"></script> <!-- For PDF generation -->
+    <!-- Websites Tab -->
+    <div id="sites-section" class="section" style="display: none;">
+      <h2>Manage Blacklist</h2>
+      <button id="reset-lists">Reset Blacklist</button>
 
-</body>
+      <div class="tab-nav" style="display: none;">
+        <button class="nav-tab" id="blacklist-tab-btn">Untrusted</button>
+      </div>
+
+      <div id="blacklist-tab" style="display: block;" class="list-box">
+        <input type="text" id="blacklist-filter" placeholder="Filter blacklist...">
+        <button id="blacklist-sort" data-order="asc">Sort Asc</button>
+        <table id="blacklist">
+          <thead>
+            <tr><th colspan="2">Blacklist</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="credits-banner">
+        <span>Webbed</span>
+        <img src="Assets/logo/logo16x16.png">
+        <br>
+        <span>Client-Side Script Security Inspector</span>
+        <br>
+        <span>FYP-25-S2-12</span>
+      </div>
+
+    </div>
+
+    <div id="custom-alert" class="hidden">
+      <div class="alert-content">
+        <span id="alert-message"></span>
+        <button id="alert-close">OK</button>
+      </div>
+    </div>
+
+    <div id="custom-confirm" class="hidden custom-dialog">
+      <div class="confirm-content">
+        <span id="confirm-message"></span>
+        <div class="confirm-buttons">
+          <button id="confirm-yes">Yes</button>
+          <button id="confirm-no">No</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="utils/alerts.js"></script>
+    <script type="module" src="index.js"></script>
+    <script type="module" src="lists.js"></script> <!-- for list functionality -->
+    <script src="libs/jspdf.umd.min.js"></script> <!-- For PDF generation -->
+
+  </body>
 </html>
