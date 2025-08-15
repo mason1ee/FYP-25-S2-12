@@ -8,7 +8,7 @@
 
 ### Webbed: A Client-Side Script Security Inspector for everyone
 
-[Website](https://mason1ee.github.io/Webbed-FYP-25-S2-12/)  
+[Website](https://website-live-lh4w.onrender.com/)  
 
 Scan a website for JavaScript vulnerabilities and missing security headers — all using a browser extension.
 
@@ -59,4 +59,3 @@ Scan a website for JavaScript vulnerabilities and missing security headers — a
 - Mason
 - Shannon
 - Melvin
-
