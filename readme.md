@@ -50,3 +50,12 @@ Scan a website for JavaScript vulnerabilities and missing security headers — a
 - `manifest.json` – Declares the name, version, permissions needed, and scripts used by the extension.  
 - `preload-darkmode.js` – Preloads dark mode if previously enabled.  
 - `rules.json` – Contains rules for JS Blocker.
+
+---
+
+### Group Members (in no particular order)
+- Jeff
+- Jovan
+- Mason
+- Shannon
+- Melvin
