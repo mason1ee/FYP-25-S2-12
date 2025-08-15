@@ -26,7 +26,7 @@ Scan a website for JavaScript vulnerabilities and missing security headers — a
 7. In the top left, click **Load unpacked**.
 8. Select the unzipped folder from step 4.
 9. Click on the **puzzle** extension icon.
-10. Select **Webbed | FYP25-S2-12**.
+10. Select **Webbed | FYP-25-S2-12**.
 11. The extension will open.
 
 ---
