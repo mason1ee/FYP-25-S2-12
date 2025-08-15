@@ -2,6 +2,7 @@ import { getActiveHttpTab } from "./background.js";
 import { reloadTabsMatchingOriginalTabDomain } from './lists.js';
 const popoutButton = document.getElementById("popout-btn");
 const darkModeToggle = document.getElementById("dark-mode-toggle");
+const jsBlockerToggle = document.getElementById("js-blocker-toggle");
 const progressBar = document.getElementById("progress-bar");
 const progressContainer = document.getElementById("progress-container");
 const statusText = document.getElementById("status-text");
@@ -10,18 +11,14 @@ const downloadBtn = document.getElementById("download-log");
 const downloadDBtn = document.getElementById("download-dlog");
 const vulnCountText = document.getElementById("vuln-count");
 const scanContainer = document.getElementById("scan-container");
-const classificationBtn = document.getElementById("classification-buttons");
 const scanTabBtn = document.getElementById("scan-tab-btn");
 const settingsTabBtn = document.getElementById("settings-tab-btn");
 const scanTab = document.getElementById("scan-tab");
 const settingsTab = document.getElementById("settings-tab");
 const sitesTabBtn = document.getElementById("sites-tab-btn");
 const sitesSection = document.getElementById("sites-section");
-const whitelistTabBtn = document.getElementById("whitelist-tab-btn");
 const blacklistTabBtn = document.getElementById("blacklist-tab-btn");
-const whitelistTab = document.getElementById("whitelist-tab");
 const blacklistTab = document.getElementById("blacklist-tab");
-const blacklistBtn = document.getElementById("blacklistBtn");
 const blockerStatusText = document.getElementById("blocker-status-text");
 scanContainer.style.display = "none";
 
@@ -164,7 +161,7 @@ function initializeExtension() {
 
   function updateStateAndMaybeScan(tab) {
     if (!tab || !isValidUrl(tab.url)) {
-      console.log("⛔ Invalid or missing tab:", tab);
+      console.log("Invalid or missing tab:", tab);
       return;
     }
 
@@ -190,7 +187,7 @@ function initializeExtension() {
     debounceTimer = setTimeout(() => {
       lastTabId = tab.id;
       lastUrl = tab.url;
-      console.log("🟢 Debounced startScan for:", tab.url);
+      console.log("Debounced startScan for:", tab.url);
       updateUIBasedOnActiveTab();
       startScan();
     }, DEBOUNCE_DELAY);
@@ -225,13 +222,25 @@ function initializeExtension() {
   // Initial scan
   checkActiveTabAndScan();
 
-  // Dark mode setup
+  // Dark Mode setup
   chrome.storage.local.get("darkMode", ({ darkMode }) => {
     const isDarkMode = Boolean(darkMode);
     const root = document.documentElement;
     root.classList.toggle("dark-mode", isDarkMode);
     darkModeToggle.checked = isDarkMode;
     localStorage.setItem("darkMode", isDarkMode);
+  });
+  
+  // JS Blocker Toggle setup
+  chrome.storage.local.get("jsBlockerTogglePosition", (result) => {
+    let savedValue = result.jsBlockerTogglePosition;
+
+    if (savedValue === undefined) {
+      savedValue = true;
+      chrome.storage.local.set({ jsBlockerTogglePosition: savedValue });
+    }
+
+    jsBlockerToggle.checked = savedValue;
   });
 }
 
@@ -302,11 +311,6 @@ async function updateUIBasedOnActiveTab() {
       // Set status to "Not Applicable"
       blockerStatusText.classList.toggle("na", blockerStatusText.innerText = "Not Applicable");
       blockerStatusText.classList.remove("active", "inactive");
-    
-      // Delete if removing blacklist button
-      // if (classificationBtn) {
-      //   classificationBtn.style.display = "none";
-      // }
 
       return;
     }
@@ -321,11 +325,6 @@ async function updateUIBasedOnActiveTab() {
       blockerStatusText.classList.toggle("active", isBlocked);
       blockerStatusText.classList.toggle("inactive", !isBlocked);
       blockerStatusText.classList.remove("na");
-
-      // Delete if removing blacklist button
-      // if (classificationBtn) {
-      //   classificationBtn.style.display = "none";
-      // }
     });
   } catch (err) {
     console.error("Failed to get active tab: ", err);
@@ -381,9 +380,7 @@ sitesTabBtn.addEventListener("click", () => {
   sitesSection.style.display = "block";
   scanTabBtn.classList.remove("active");
   settingsTabBtn.classList.remove("active");
-  whitelistTab.style.display = "none";
   blacklistTab.style.display = "block";
-  whitelistTabBtn.classList.add("active");
   blacklistTabBtn.classList.remove("active");
   sitesTabBtn.classList.add("active");
 });
@@ -402,18 +399,15 @@ darkModeToggle.addEventListener("change", () => {
   applyDarkModeStylesToTable();
 });
 
-/* Website list Tab Navigation*/
-whitelistTabBtn.addEventListener("click", () => {
-  whitelistTab.style.display = "none";
-  blacklistTab.style.display = "block";
-  whitelistTabBtn.classList.add("active");
-  blacklistTabBtn.classList.remove("active");
+jsBlockerToggle.addEventListener("change", () => {
+  const currentValue = jsBlockerToggle.checked;
+  chrome.storage.local.set({ jsBlockerTogglePosition: currentValue });
 });
 
+/* Website list Tab Navigation*/
+
 blacklistTabBtn.addEventListener("click", () => {
-  whitelistTab.style.display = "none";
   blacklistTab.style.display = "block";
-  whitelistTabBtn.classList.remove("active");
   blacklistTabBtn.classList.add("active");
 });
 
@@ -524,9 +518,6 @@ function resetScanContainer() {
   downloadBtn.style.display = "none";
   downloadDBtn.style.display = "none"
 
-  // Delete if removing blacklist button
-  //classificationBtn.style.display = "none";
-
   // Clear any intervals and listeners
   if (interval) clearInterval(interval);
   if (onScanResult) {
@@ -538,9 +529,6 @@ function resetScanContainer() {
   isScanning = false;
 }
 
-let allThreats = [];
-let totalSeverityScore = 0;
-
 function setBadge(targetTabId, score, isSecure) {
   chrome.action.setBadgeText({ text: score.toString(), tabId: targetTabId });
 
@@ -550,6 +538,11 @@ function setBadge(targetTabId, score, isSecure) {
     chrome.action.setBadgeBackgroundColor({ color: "#FF0000", tabId: targetTabId });
   }
 }
+
+let allThreats = [];
+let totalSeverityScore = 0;
+const blacklistSeverityscore = 30;
+let summaryIssues = [];
 
 function startScan() {
   totalSeverityScore = 0;
@@ -632,37 +625,27 @@ function startScan() {
 
               const contentThreats = message.threats || [];
 
+              // Filter inline threats separately but keep them in the list if present
               const hasInline = contentThreats.some(threat => threat.type === "inline");
-
-              // Filter out inline threats for separate handling
               const filteredContentThreats = contentThreats.filter(threat => threat.type !== "inline");
-
               if (hasInline) {
                 filteredContentThreats.push({ type: "inline", description: "Inline threat detected" });
               }
 
-              const summaryIssues = [];
-              const inlineCount = countInlineScripts(allThreats);
-              function countInlineScripts(allThreats) {
-                return allThreats.filter(th =>
+              // Helper function moved out of main flow for clarity
+              function countInlineScripts(threats) {
+                return threats.filter(th =>
                   (typeof th === "string" && th.includes("inline-")) ||
                   (typeof th === "object" && th.scriptIndex?.startsWith("inline-"))
                 ).length;
               }
+
+              const inlineCount = countInlineScripts(allThreats);
               const externalCount = new Set(
                 allThreats
                   .filter(th => typeof th === "object" && th.scriptIndex?.startsWith("external-"))
                   .map(th => th.scriptIndex)
               ).size;
-
-              const hasJSThreats = allThreats.some(th =>
-                typeof th === "object" && (
-                  th.scriptIndex?.startsWith("external-") || th.scriptIndex?.startsWith("inline")
-                )
-              );
-              if (hasJSThreats) {
-                summaryIssues.push("Suspicious or unsafe JavaScript activity detected.");
-              }
 
               const protocol = message.protocol || "";
 
@@ -670,95 +653,68 @@ function startScan() {
                 const headers = res?.headers || {};
                 const headerThreats = [];
 
-                // Define severity scores for header issues and protocol issues
-                function getSeverityScore(threat) {
-                  const severityScores = {
+                const severityScores = {
+                  "Page is not served over HTTPS": blacklistSeverityscore,
                   "Missing Content-Security-Policy": 2,
-                  "Missing Strict-Transport-Security": 3,
+                  "Missing Strict-Transport-Security": 2,
                   "Missing X-Content-Type-Options": 1,
                   "Missing X-Frame-Options": 1,
-                  "Page is not served over HTTPS": 30,
                   "inline": 0.001
-                  };
+                };
+
+                function getSeverityScore(threat) {
                   return severityScores[threat] || 0;
                 }
 
+                // Check protocol and headers, add corresponding threats
                 if (protocol !== "https:") {
                   headerThreats.push("Page is not served over HTTPS");
                 }
+                if (!headers["content-security-policy"]) headerThreats.push("Missing Content-Security-Policy");
+                if (!headers["strict-transport-security"]) headerThreats.push("Missing Strict-Transport-Security");
+                if (!headers["x-content-type-options"]) headerThreats.push("Missing X-Content-Type-Options");
+                if (!headers["x-frame-options"]) headerThreats.push("Missing X-Frame-Options");
 
-                if (!headers["content-security-policy"])
-                  headerThreats.push("Missing Content-Security-Policy");
-                if (!headers["x-content-type-options"])
-                  headerThreats.push("Missing X-Content-Type-Options");
-                if (!headers["x-frame-options"])
-                  headerThreats.push("Missing X-Frame-Options");
-                if (!headers["strict-transport-security"])
-                  headerThreats.push("Missing Strict-Transport-Security");
+                // Reset score before tallying
+                totalSeverityScore = 0;
 
-
+                // Add header threats severity
                 headerThreats.forEach(threat => {
-                  if (typeof threat === "string") {
-                    totalSeverityScore += getSeverityScore[threat] || 1;
-                  }
+                  totalSeverityScore += getSeverityScore(threat) || 1;
                 });
 
-                // Combine all threats (headers + content)
-                allThreats = [...filteredContentThreats, ...headerThreats];
-
-                allThreats.forEach(threat => {
-                  if (typeof threat === "string") {
-                    // Headers or inline keyword
-                    if (threat.toLowerCase().includes("inline")) {
-                       totalSeverityScore += 0.001;
-                    }
-                  } 
-                  else if (typeof threat === "object") {
-                    // Inline scripts stored as objects
-                    if (threat.scriptIndex?.startsWith("inline")) {
-                       totalSeverityScore += 0.001;
-                    } else {
-                      totalSeverityScore += getSeverityScore(threat.type || "");
-                    }
-                  }
-                });
-
+                // Add content threats severity - use filteredContentThreats only once
                 filteredContentThreats.forEach(threat => {
                   if (typeof threat === "string") {
-                    totalSeverityScore += getSeverityScore[threat] || 0.001;
+                    totalSeverityScore += getSeverityScore(threat) || 0.001;
                   } else if (threat && typeof threat === "object" && threat.type) {
-                    totalSeverityScore += getSeverityScore[threat.type] || 0.001;
+                    totalSeverityScore += getSeverityScore(threat.type) || 0.001;
                   }
                 });
+
+                // Use filteredContentThreats as combined threats for further processing
+                allThreats = [...filteredContentThreats, ...headerThreats];
 
                 totalSeverityScore = Math.ceil(totalSeverityScore);
 
-                // Determine status based on severity score thresholds
+                // Determine status based on severity
                 let statusMessage = "";
                 let statusColor = "";
                 let isSecure = false;
 
-                // See from Chrome console
                 printDomainScore();
-                
-                if (totalSeverityScore >= 30) {
-                  statusMessage = "Website has critical vulnerabilities";
+
+                if (totalSeverityScore >= blacklistSeverityscore) {
+                  statusMessage = "Website has critical vulnerabilities!";
                   statusColor = "red";
                   isSecure = false;
                   setBadge(tabId, totalSeverityScore, false);
-                } else if (totalSeverityScore >= 10) {
+                } else if (totalSeverityScore >= 8) {
                   statusMessage = "Website has some security warnings.";
                   statusColor = "orange";
-                  isSecure = true; // Warning but not fully insecure
+                  isSecure = true;
                   setBadge(tabId, totalSeverityScore, true);
-                } 
-                // else if (totalSeverityScore <= 7) {
-                //   statusMessage = "Website appears secure.";
-                //   statusColor = "green";
-                //   isSecure = true;
-                //   setBadge(tabId, totalSeverityScore, true);
-                // } 
-                else {
+                } else {
                   statusMessage = "Website appears secure.";
                   statusColor = "green";
                   isSecure = true;
@@ -769,14 +725,13 @@ function startScan() {
                 resultText.style.color = statusColor;
 
                 const lines = [];
-
                 let count = 0;
                 const skippedLargeScriptUrls = [];
 
                 const failedFetchCount = allThreats.filter(th =>
-                        typeof th === "object" &&
-                        th.scriptIndex?.startsWith("external-") &&
-                        th.error?.includes("Fetch error: Failed to fetch")
+                  typeof th === "object" &&
+                  th.scriptIndex?.startsWith("external-") &&
+                  th.error?.includes("Fetch error: Failed to fetch")
                 ).length;
 
                 allThreats.forEach(th => {
@@ -789,9 +744,7 @@ function startScan() {
                     const err = th.error ? ` - ${th.error}` : "";
 
                     if (th.error?.includes("Skipped large script")) {
-                      if (src !== "n/a") {
-                        skippedLargeScriptUrls.push(src);
-                      }
+                      if (src !== "n/a") skippedLargeScriptUrls.push(src);
                       return; // skip adding as individual line
                     }
 
@@ -1062,6 +1015,10 @@ function startScan() {
                         summaryIssues.push(`Total ${externalCount} external scripts detected`);
                       }
 
+                      if (displayedIssueCount > summaryIssues.length) {
+                        summaryIssues.push(`${displayedIssueCount - summaryIssues.length - 1} other detailed issues. [See in detailed report]`);
+                      }
+
                       // Number the list
                       const numberedSummary = summaryIssues.map((text, idx) => `[${idx + 1}] ${text}`);
 
@@ -1227,36 +1184,36 @@ function startScan() {
                     }
 
                     // Add to correct list based on severity score
-                    if (totalSeverityScore >= 15) {
-                      chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
-                        if (!blacklist.includes(hostname)) {
-                          await sleep(2000);
-                          window.showCustomAlert("Website flagged! Blacklisting...");
-                          blacklist.push(hostname);
-                          await sleep(1000);
-                          reloadTabsMatchingOriginalTabDomain();
-                          chrome.storage.local.set({ blacklist });
-                          return;
-                        } else{
-                          return;
+                    chrome.storage.local.get(["jsBlockerTogglePosition"], ({ jsBlockerTogglePosition }) => {
+                      if (jsBlockerTogglePosition) {
+                        if (totalSeverityScore >= blacklistSeverityscore) {
+                          chrome.storage.local.get("blacklist", async ({ blacklist = [] }) => {
+                            if (!blacklist.includes(hostname)) {
+                              await sleep(2000);
+                              window.showCustomAlert("Website flagged! Blacklisting...");
+                              blacklist.push(hostname);
+                              await sleep(1000);
+                              reloadTabsMatchingOriginalTabDomain();
+                              chrome.storage.local.set({ blacklist });
+                              return;
+                            } else {
+                              return;
+                            }
+                          });
+                        } else {
+                          whitelist.push(hostname);
+                          chrome.storage.local.set({ whitelist });
                         }
-                      });
-                    } else {
-                      whitelist.push(hostname);
-                      chrome.storage.local.set({ whitelist });
-                    }
+                      } else {
+                        return;
+                      }
+                    });
                   });
                 });
 
                 function sleep(ms) {
                   return new Promise(resolve => setTimeout(resolve, ms));
                 }
-
-                // Delete if removing blacklist button
-                //classificationBtn.style.display = "none";
-
-                // For manual blacklist button
-                //blacklistBtn.style.display = "inline-block";
 
                 chrome.runtime.onMessage.removeListener(onScanResult);
                 onScanResult = null;
@@ -1288,7 +1245,6 @@ function placeCreditsBanner() {
     }
   });
 
-  // Append a clone or the original to each section that needs it:
   scanTab.appendChild(banner.cloneNode(true));
   settingsTab.appendChild(banner.cloneNode(true));
   sitesSection.appendChild(banner.cloneNode(true));

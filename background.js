@@ -283,7 +283,7 @@ async function updateDynamicBlacklistRules() {
     await addDynamicRules(rules);
     console.log("✅ Dynamic blacklist rules updated successfully.");
   } catch (error) {
-    //console.error("❌ Failed to update dynamic blacklist rules:", error.message);
+    console.log("❌ Failed to update dynamic blacklist rules:", error.message);
   }
 }
 
